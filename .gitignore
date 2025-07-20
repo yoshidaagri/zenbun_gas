@@ -41,6 +41,9 @@ logs/
 *.swo
 *~
 
+# Claude Code設定
+.claude/
+
 # OS生成ファイル
 .DS_Store
 Thumbs.db
