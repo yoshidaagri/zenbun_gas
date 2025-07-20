@@ -156,6 +156,47 @@ class ConfigManager {
 
 
   /**
+   * Geminiモデル取得（フォールバック機能付き）
+   * @returns {string} 使用するGeminiモデル名
+   */
+  static getGeminiModel() {
+    const properties = PropertiesService.getScriptProperties();
+    const customModel = properties.getProperty('GEMINI_MODEL');
+    
+    // カスタムモデルが設定されている場合はそれを使用
+    if (customModel) {
+      console.log(`🤖 カスタムGeminiモデル: ${customModel}`);
+      return customModel;
+    }
+    
+    // デフォルトはGemini 2.0 Flash
+    const defaultModel = 'gemini-2.0-flash-exp';
+    console.log(`🤖 デフォルトGeminiモデル: ${defaultModel}`);
+    return defaultModel;
+  }
+
+  /**
+   * Geminiモデル設定
+   * @param {string} modelName モデル名 (gemini-2.0-flash-exp, gemini-1.5-flash等)
+   */
+  static setGeminiModel(modelName) {
+    const properties = PropertiesService.getScriptProperties();
+    properties.setProperty('GEMINI_MODEL', modelName);
+    
+    console.log(`🤖 Geminiモデル設定更新: ${modelName}`);
+    return true;
+  }
+
+  /**
+   * Gemini APIエンドポイント取得
+   * @returns {string} API エンドポイントURL
+   */
+  static getGeminiApiEndpoint() {
+    const model = this.getGeminiModel();
+    return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  }
+
+  /**
    * 設定確認
    */
   static checkSetup() {
@@ -166,6 +207,7 @@ class ConfigManager {
     console.log('📋 保存済み設定一覧:');
     console.log('Vision API:', properties.VISION_API_KEY ? `✅設定済み (${properties.VISION_API_KEY.substring(0, 10)}...)` : '❌未設定');
     console.log('Gemini API:', properties.GEMINI_API_KEY ? `✅設定済み (${properties.GEMINI_API_KEY.substring(0, 10)}...)` : '❌未設定');
+    console.log('Geminiモデル:', this.getGeminiModel());
     console.log('スプレッドシート:', properties.SPREADSHEET_ID ? `✅設定済み (${properties.SPREADSHEET_ID})` : '❌未設定');
     console.log('フォルダ:', properties.DRAWINGS_FOLDER_ID ? `✅設定済み (${properties.DRAWINGS_FOLDER_ID})` : '❌未設定');
     

@@ -1306,11 +1306,11 @@ function generateDocumentSummary(fileName, extractedText, geminiApiKey) {
 }
 
 /**
- * Gemini 1.5 Flash 画像処理専用テスト
+ * Gemini 2.0 Flash 画像処理専用テスト
  * キーワード抽出重視の画像解析確認
  */
 function testImageGeminiProcessing() {
-  console.log('🤖 ===== Gemini 1.5 Flash 画像処理テスト開始 =====');
+  console.log('🤖 ===== Gemini 2.0 Flash 画像処理テスト開始 =====');
   
   try {
     console.log('📋 ステップ1: 設定確認');
@@ -1400,11 +1400,11 @@ function testImageGeminiProcessing() {
 }
 
 /**
- * Gemini 1.5 Flash PDF処理専用テスト
+ * Gemini 2.0 Flash PDF処理専用テスト
  * キーワード抽出重視のPDF解析確認
  */
 function testPdfGeminiProcessing() {
-  console.log('🤖 ===== Gemini 1.5 Flash PDF処理テスト開始 =====');
+  console.log('🤖 ===== Gemini 2.0 Flash PDF処理テスト開始 =====');
   
   try {
     console.log('📋 ステップ1: 設定確認');
@@ -1489,6 +1489,169 @@ function testPdfGeminiProcessing() {
   }
 }
 
+
+/**
+ * Gemini 2.0 Flash移行テスト
+ * モデル切り替え・フォールバック機能の確認
+ */
+function testGemini2Migration() {
+  console.log('🚀 ===== Gemini 2.0 Flash移行テスト開始 =====');
+  
+  try {
+    console.log('📋 ステップ1: 現在の設定確認');
+    console.log('現在のモデル:', ConfigManager.getGeminiModel());
+    console.log('APIエンドポイント:', ConfigManager.getGeminiApiEndpoint());
+    
+    console.log('\n📋 ステップ2: 設定テスト');
+    ConfigManager.checkSetup();
+    
+    console.log('\n📋 ステップ3: モデル切り替えテスト');
+    const originalModel = ConfigManager.getGeminiModel();
+    
+    // 2.0 Flashに設定
+    ConfigManager.setGeminiModel('gemini-2.0-flash-exp');
+    console.log('✅ Gemini 2.0設定:', ConfigManager.getGeminiModel());
+    
+    // 1.5 Flashに戻すテスト
+    ConfigManager.setGeminiModel('gemini-1.5-flash');
+    console.log('✅ Gemini 1.5設定:', ConfigManager.getGeminiModel());
+    
+    // 元の設定に戻す
+    ConfigManager.setGeminiModel(originalModel);
+    console.log('✅ 元設定復元:', ConfigManager.getGeminiModel());
+    
+    console.log('\n📋 ステップ4: 基本接続テスト');
+    const config = ConfigManager.getConfig();
+    if (!config.geminiApiKey) {
+      throw new Error('Gemini APIキーが設定されていません');
+    }
+    
+    console.log('🎊 Gemini 2.0移行テスト完了');
+    return {
+      success: true,
+      currentModel: ConfigManager.getGeminiModel(),
+      endpoint: ConfigManager.getGeminiApiEndpoint(),
+      configValid: true
+    };
+    
+  } catch (error) {
+    console.error('❌ Gemini 2.0移行テストエラー:', error);
+    return { 
+      success: false, 
+      error: error.message,
+      currentModel: ConfigManager.getGeminiModel()
+    };
+  }
+}
+
+/**
+ * Geminiモデル性能比較テスト
+ * 1.5 Flash vs 2.0 Flash の比較
+ */
+function compareGeminiModels() {
+  console.log('⚖️ ===== Geminiモデル性能比較テスト開始 =====');
+  
+  try {
+    const config = ConfigManager.getConfig();
+    if (!config.folderId || !config.geminiApiKey) {
+      return { success: false, error: '設定不備: フォルダIDまたはGemini APIキーが未設定' };
+    }
+    
+    console.log('📁 テストファイル検索中...');
+    const folder = DriveApp.getFolderById(config.folderId);
+    const files = folder.getFiles();
+    
+    let testFile = null;
+    while (files.hasNext()) {
+      const file = files.next();
+      const mimeType = file.getBlob().getContentType();
+      if (mimeType === MimeType.JPEG || mimeType === MimeType.PNG || mimeType === MimeType.PDF) {
+        testFile = file;
+        break;
+      }
+    }
+    
+    if (!testFile) {
+      return { success: false, error: 'テストファイルが見つかりません' };
+    }
+    
+    console.log(`🎯 テスト対象: ${testFile.getName()}`);
+    
+    const results = {
+      fileName: testFile.getName(),
+      fileType: testFile.getBlob().getContentType(),
+      models: {}
+    };
+    
+    // Gemini 1.5 Flash テスト
+    console.log('\n📊 Gemini 1.5 Flash テスト...');
+    ConfigManager.setGeminiModel('gemini-1.5-flash');
+    const startTime1_5 = new Date();
+    
+    let result1_5;
+    try {
+      if (testFile.getBlob().getContentType() === MimeType.PDF) {
+        result1_5 = DocumentProcessor.extractTextFromPDF(testFile, config.visionApiKey);
+      } else {
+        result1_5 = DocumentProcessor.extractTextFromImage(testFile, config.visionApiKey);
+      }
+      const endTime1_5 = new Date();
+      
+      results.models['gemini-1.5-flash'] = {
+        success: true,
+        processingTime: (endTime1_5 - startTime1_5) / 1000,
+        responseLength: result1_5 ? result1_5.length : 0,
+        response: result1_5 ? result1_5.substring(0, 200) : '失敗'
+      };
+    } catch (error1_5) {
+      results.models['gemini-1.5-flash'] = {
+        success: false,
+        error: error1_5.message
+      };
+    }
+    
+    // 少し待機
+    Utilities.sleep(3000);
+    
+    // Gemini 2.0 Flash テスト
+    console.log('\n📊 Gemini 2.0 Flash テスト...');
+    ConfigManager.setGeminiModel('gemini-2.0-flash-exp');
+    const startTime2_0 = new Date();
+    
+    let result2_0;
+    try {
+      if (testFile.getBlob().getContentType() === MimeType.PDF) {
+        result2_0 = DocumentProcessor.extractTextFromPDF(testFile, config.visionApiKey);
+      } else {
+        result2_0 = DocumentProcessor.extractTextFromImage(testFile, config.visionApiKey);
+      }
+      const endTime2_0 = new Date();
+      
+      results.models['gemini-2.0-flash-exp'] = {
+        success: true,
+        processingTime: (endTime2_0 - startTime2_0) / 1000,
+        responseLength: result2_0 ? result2_0.length : 0,
+        response: result2_0 ? result2_0.substring(0, 200) : '失敗'
+      };
+    } catch (error2_0) {
+      results.models['gemini-2.0-flash-exp'] = {
+        success: false,
+        error: error2_0.message
+      };
+    }
+    
+    console.log('🎊 性能比較テスト完了');
+    results.success = true;
+    return results;
+    
+  } catch (error) {
+    console.error('❌ 性能比較テストエラー:', error);
+    return { 
+      success: false, 
+      error: error.message
+    };
+  }
+}
 
 // ===== システム情報関数 =====
 

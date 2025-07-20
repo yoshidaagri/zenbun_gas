@@ -462,8 +462,11 @@ class GeminiFileAPI {
   static performChatRequest(chatSession, question, apiKey) {
     console.log('🤖 Gemini Chat API リクエスト送信中...');
     
-    // Chat API エンドポイント
-    const chatUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // Chat API エンドポイント（設定可能なモデル使用）
+    const baseEndpoint = ConfigManager.getGeminiApiEndpoint();
+    const chatUrl = `${baseEndpoint}?key=${apiKey}`;
+    
+    console.log(`🤖 使用モデル: ${ConfigManager.getGeminiModel()}`);
     
     // リクエストペイロード構築
     const contents = this.buildChatContents(chatSession, question);

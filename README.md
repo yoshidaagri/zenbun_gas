@@ -5,7 +5,7 @@ Google Apps Script (GAS) とGemini File APIを使用した、設計事務所向�
 ## 🚀 v2.1 最新アップデート
 
 ### ✨ **PDF処理の革新的改善**
-- **Gemini 1.5 Flash専用PDF読み込み**: Vision APIの不安定性を解消し、PDFを直接Geminiで解析
+- **Gemini 2.0 Flash専用PDF読み込み**: Vision APIの不安定性を解消し、PDFを直接Geminiで解析
 - **キーワード抽出特化**: 検索用キーワード抽出に特化した300文字以内のプロンプト
 - **エラー大幅削減**: "Bad image data"等のVision APIエラーを完全除去
 - **処理時間短縮**: 不要な多段階処理を排除し、単一APIによる高速処理
@@ -20,9 +20,9 @@ Google Apps Script (GAS) とGemini File APIを使用した、設計事務所向�
 
 #### 🔍 **検索機能**
 - **自然言語検索**: 「田中邸の平面図」「3階建ての店舗設計」など自然な日本語で検索
-- **AI要約検索**: Gemini Flash 2.5がドキュメントの内容を自動要約したデータから検索
+- **AI要約検索**: Gemini 2.0 Flashがドキュメントの内容を自動要約したデータから検索
 - **画像OCR検索**: Google Cloud Vision APIで抽出したテキストから検索（JPEG/PNG対応）
-- **PDF専用AI解析**: Gemini 1.5 FlashによるPDF直接解析・キーワード抽出
+- **PDF専用AI解析**: Gemini 2.0 FlashによるPDF直接解析・キーワード抽出
 - **複合検索**: ファイル名・内容・AI要約を横断した包括的検索
 
 #### 🤖 **AI解析・チャット機能** ⭐ **NEW**
@@ -45,7 +45,7 @@ Google Apps Script (GAS) とGemini File APIを使用した、設計事務所向�
                   ↓         ↓
               [PDF専用]  [画像専用]
                   ↓         ↓
-          [Gemini 1.5 Flash] [Vision API + Gemini Flash 2.5]
+          [Gemini 2.0 Flash] [Vision API + Gemini 2.0 Flash]
                   ↓         ↓
             [キーワード抽出] [OCR + AI要約]
                   ↓
@@ -56,14 +56,14 @@ Google Apps Script (GAS) とGemini File APIを使用した、設計事務所向�
 - **バックエンド**: Google Apps Script (モジュール化アーキテクチャ)
 - **データベース**: Google Spreadsheet
 - **ストレージ**: Google Drive
-- **PDF処理**: Gemini 1.5 Flash (直接解析・キーワード抽出)
-- **画像処理**: Google Cloud Vision API (OCR) + Gemini Flash 2.5 (要約)
+- **PDF処理**: Gemini 2.0 Flash (直接解析・キーワード抽出)
+- **画像処理**: Gemini 2.0 Flash (キーワード抽出特化)
 - **AI解析**: Gemini File API (ファイル直接アップロード)
 - **マークダウン**: marked.js (CDN)
 
 ### 主要な技術的改善点
 - **モジュール分離**: 機能別にGSファイルを分割（ConfigManager, DatabaseManager, AnalysisManager等）
-- **PDF処理革新**: Gemini 1.5 Flash専用化によるエラー除去と処理高速化
+- **PDF処理革新**: Gemini 2.0 Flash専用化によるエラー除去と処理高速化
 - **エラーハンドリング**: 包括的なエラー処理とデバッグ機能
 - **レスポンス最適化**: google.script.run通信制限対策
 - **防御的プログラミング**: null/undefined安全な実装
@@ -336,7 +336,7 @@ ConfigManager.setupIds(spreadsheetId, folderId) // ID一括設定
 - **想定使用量**: 100ファイル/月
 - **月額コスト**: $0.15 (約¥22)
 
-##### **Gemini Flash 2.5 API（AI要約生成）**
+##### **Gemini 2.0 Flash API（AI要約生成）**
 - **料金**: 入力 $0.075/1Mトークン、出力 $0.30/1Mトークン
 - **想定使用量**: 入力10万トークン、出力5万トークン/月
 - **月額コスト**: $0.0075 + $0.015 = $0.0225 (約¥3)
