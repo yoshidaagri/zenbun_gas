@@ -1,14 +1,42 @@
-# 🏗️ デザイン事務所ドキュメント検索システム v2.1
+# 🏗️ デザイン事務所ドキュメント検索システム v2.2
 
-Google Apps Script (GAS) とGemini File APIを使用した、設計事務所向けの次世代AI搭載ドキュメント検索・解析システムです。過去の図面やドキュメントを自動でAI解析・キーワード抽出し、自然言語で検索できるだけでなく、**個別ファイルとのAIチャット機能**も搭載しています。
+Google Apps Script (GAS) とGemini 2.0 Flash APIを使用した、設計事務所向けの次世代AI搭載ドキュメント検索・解析システムです。過去の図面やドキュメントを自動でAI解析・キーワード抽出し、自然言語で検索できるだけでなく、**個別ファイルとのAIチャット機能**も搭載しています。
 
-## 🚀 v2.1 最新アップデート
+## 🚀 v2.2 最新アップデート
 
-### ✨ **PDF処理の革新的改善**
-- **Gemini 2.0 Flash専用PDF読み込み**: Vision APIの不安定性を解消し、PDFを直接Geminiで解析
-- **キーワード抽出特化**: 検索用キーワード抽出に特化した300文字以内のプロンプト
-- **エラー大幅削減**: "Bad image data"等のVision APIエラーを完全除去
-- **処理時間短縮**: 不要な多段階処理を排除し、単一APIによる高速処理
+### ✨ **Gemini 2.0 Flash完全対応**
+- **Gemini 2.0 Flash専用システム**: 最新AIモデルによる高精度解析
+- **フォールバック機能**: 問題時は1.5 Flashに自動切り替え可能
+- **動的モデル選択**: 設定で簡単にモデル切り替え
+- **プロンプト最適化**: Gemini 2.0向けに特化した解析指示
+- **性能比較機能**: 1.5 vs 2.0の性能を比較テスト可能
+
+## 📊 現在の状況
+
+### **✅ 実装完了済み**
+- **Gemini 2.0 Flash対応**: 完全移行済み（デフォルト: `gemini-2.0-flash-exp`）
+- **Vision API除去**: 全てGemini専用処理に統一
+- **動的モデル選択**: 設定による簡単切り替え
+- **フォールバック機能**: 1.5 ↔ 2.0 安全な切り替え
+- **最適化プロンプト**: 2.0向け高精度解析指示
+
+### **🔄 GAS更新必要ファイル**
+```
+更新必要（4ファイル）:
+1. Config.gs - shared/Config.gs
+2. GeminiFileAPI.gs - analysis/GeminiFileAPI.gs  
+3. DocumentProcessor.gs - core/DocumentProcessor.gs
+4. Code.gs - main/Code.gs
+
+更新不要:
+Utils.gs, ErrorHandler.gs, DatabaseManager.gs, 
+SearchEngine.gs, AnalysisManager.gs, index.html
+```
+
+### **🧪 移行後テスト関数**
+- `testGemini2Migration()` - 移行機能テスト
+- `compareGeminiModels()` - 1.5 vs 2.0 性能比較
+- `ConfigManager.setGeminiModel('model-name')` - モデル切り替え
 
 ## 🎯 システム概要
 
