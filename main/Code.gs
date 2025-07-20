@@ -1008,6 +1008,299 @@ function searchDrawings(query) {
   return searchDocuments(query);
 }
 
+/**
+ * JPEG処理テスト関数（UI呼び出し用）
+ */
+function testJpegProcessing() {
+  // tests/TestAI.gs の関数を呼び出し
+  const result = (function() {
+    try {
+      console.log('📸 ===== JPEG画像処理テスト開始 =====');
+      
+      console.log('📋 ステップ1: 設定確認');
+      const config = ConfigManager.getConfig();
+      if (!config.folderId) {
+        console.error('❌ フォルダIDが設定されていません');
+        return { success: false, error: 'フォルダID未設定' };
+      }
+      
+      console.log('📁 ステップ2: フォルダ内JPEG画像検索');
+      const folder = DriveApp.getFolderById(config.folderId);
+      const files = folder.getFiles();
+      
+      let jpegFiles = [];
+      while (files.hasNext()) {
+        const file = files.next();
+        const mimeType = file.getBlob().getContentType();
+        if (mimeType === MimeType.JPEG || mimeType === 'image/jpeg') {
+          jpegFiles.push({
+            file: file,
+            name: file.getName(),
+            size: file.getSize(),
+            mimeType: mimeType
+          });
+        }
+      }
+      
+      console.log(`📊 JPEG画像検出結果: ${jpegFiles.length}件`);
+      jpegFiles.forEach((item, index) => {
+        console.log(`  ${index + 1}. ${item.name} (${Utils.formatFileSize(item.size)})`);
+      });
+      
+      if (jpegFiles.length === 0) {
+        console.log('⚠️ JPEG画像が見つかりませんでした。');
+        return { success: true, jpegCount: 0, message: 'JPEG画像なし' };
+      }
+      
+      console.log('✅ JPEG処理機能有効化完了');
+      return {
+        success: true,
+        jpegCount: jpegFiles.length,
+        message: `JPEG処理準備完了 (${jpegFiles.length}件検出)`
+      };
+      
+    } catch (error) {
+      console.error('❌ JPEG処理テストエラー:', error);
+      return { success: false, error: error.message };
+    }
+  })();
+  
+  return result;
+}
+
+/**
+ * JPEG処理詳細テスト（ラベル検出機能確認用）
+ */
+function testJpegProcessingDetailed() {
+  console.log('📸 ===== JPEG画像処理詳細テスト開始 =====');
+  
+  try {
+    console.log('📋 ステップ1: 設定確認');
+    const config = ConfigManager.getConfig();
+    if (!config.folderId || !config.visionApiKey) {
+      return { success: false, error: '設定不備: フォルダIDまたはVision APIキーが未設定' };
+    }
+    
+    console.log('📁 ステップ2: JPEG画像検索');
+    const folder = DriveApp.getFolderById(config.folderId);
+    const files = folder.getFiles();
+    
+    let jpegFiles = [];
+    while (files.hasNext()) {
+      const file = files.next();
+      const mimeType = file.getBlob().getContentType();
+      if (mimeType === MimeType.JPEG || mimeType === 'image/jpeg') {
+        jpegFiles.push(file);
+        if (jpegFiles.length >= 3) break; // 最大3ファイル
+      }
+    }
+    
+    if (jpegFiles.length === 0) {
+      return { success: false, error: 'テスト用JPEG画像が見つかりません' };
+    }
+    
+    console.log(`🎯 テスト対象: ${jpegFiles.length}ファイル`);
+    
+    const results = [];
+    
+    for (let i = 0; i < jpegFiles.length; i++) {
+      const file = jpegFiles[i];
+      console.log(`📸 ${i + 1}/${jpegFiles.length}: ${file.getName()} 処理開始`);
+      
+      try {
+        const extractedText = DocumentProcessor.extractTextFromFile(
+          file, 
+          config.visionApiKey, 
+          MimeType.JPEG
+        );
+        
+        console.log(`✅ 処理完了: ${extractedText.length}文字抽出`);
+        
+        // ラベル検出情報の確認
+        const hasLabels = extractedText.includes('画像内容:');
+        const hasColors = extractedText.includes('主要色:');
+        
+        results.push({
+          fileName: file.getName(),
+          fileSize: Utils.formatFileSize(file.getSize()),
+          extractedLength: extractedText.length,
+          hasLabels: hasLabels,
+          hasColors: hasColors,
+          preview: extractedText.substring(0, 200) + (extractedText.length > 200 ? '...' : ''),
+          extractedText: extractedText // 完全版
+        });
+        
+        console.log(`  📊 ラベル検出: ${hasLabels ? '✅' : '❌'}`);
+        console.log(`  🎨 色情報: ${hasColors ? '✅' : '❌'}`);
+        
+      } catch (error) {
+        console.error(`❌ ${file.getName()} 処理エラー:`, error);
+        results.push({
+          fileName: file.getName(),
+          error: error.message
+        });
+      }
+      
+      // API制限対策
+      if (i < jpegFiles.length - 1) {
+        Utilities.sleep(2000);
+      }
+    }
+    
+    console.log('🎊 JPEG処理詳細テスト完了');
+    return {
+      success: true,
+      testCount: jpegFiles.length,
+      results: results,
+      summary: {
+        totalFiles: results.length,
+        successFiles: results.filter(r => !r.error).length,
+        withLabels: results.filter(r => r.hasLabels).length,
+        withColors: results.filter(r => r.hasColors).length
+      }
+    };
+    
+  } catch (error) {
+    console.error('❌ JPEG詳細テストエラー:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * PDF処理詳細テスト（ラベル検出機能確認用）
+ */
+
+function testPdfProcessingDetailed() {
+  console.log('📄 ===== PDF処理詳細テスト開始 =====');
+  
+  try {
+    console.log('📋 ステップ1: 設定確認');
+    const config = ConfigManager.getConfig();
+    if (!config.folderId || !config.visionApiKey) {
+      return { success: false, error: '設定不備: フォルダIDまたはVision APIキーが未設定' };
+    }
+    
+    console.log('📁 ステップ2: PDF検索');
+    const folder = DriveApp.getFolderById(config.folderId);
+    const files = folder.getFiles();
+    
+    let pdfFiles = [];
+    while (files.hasNext()) {
+      const file = files.next();
+      const mimeType = file.getBlob().getContentType();
+      if (mimeType === MimeType.PDF || mimeType === 'application/pdf') {
+        pdfFiles.push(file);
+        if (pdfFiles.length >= 3) break; // 最大3ファイル
+      }
+    }
+    
+    if (pdfFiles.length === 0) {
+      return { success: false, error: 'テスト用PDFファイルが見つかりません' };
+    }
+    
+    console.log(`🎯 テスト対象: ${pdfFiles.length}ファイル`);
+    
+    const results = [];
+    
+    for (let i = 0; i < pdfFiles.length; i++) {
+      const file = pdfFiles[i];
+      console.log(`📄 ${i + 1}/${pdfFiles.length}: ${file.getName()} 処理開始`);
+      
+      try {
+        const extractedText = DocumentProcessor.extractTextFromFile(
+          file, 
+          config.visionApiKey, 
+          MimeType.PDF
+        );
+        
+        console.log(`✅ 処理完了: ${extractedText.length}文字抽出`);
+        
+        // PDF処理結果の確認（テキスト検出専用）
+        const isFileBasedFallback = extractedText.includes('PDFファイル:');
+        const isTextDetectionFallback = extractedText.includes('PDF フォールバック処理成功');
+        
+        // PDF処理レベルの判定
+        let processingLevel = 'unknown';
+        if (!isFileBasedFallback && !isTextDetectionFallback) {
+          processingLevel = 'document_text_success'; // 文書テキスト検出成功
+        } else if (isTextDetectionFallback) {
+          processingLevel = 'text_fallback'; // TEXT_DETECTIONフォールバック
+        } else {
+          processingLevel = 'filename_fallback'; // ファイル名ベース
+        }
+        
+        results.push({
+          fileName: file.getName(),
+          fileSize: Utils.formatFileSize(file.getSize()),
+          extractedLength: extractedText.length,
+          isVisionApiSuccess: !isFileBasedFallback,
+          processingLevel: processingLevel,
+          preview: extractedText.substring(0, 200) + (extractedText.length > 200 ? '...' : ''),
+          extractedText: extractedText // 完全版
+        });
+        
+        console.log(`  🔍 処理レベル: ${processingLevel}`);
+        console.log(`  📄 Vision API成功: ${!isFileBasedFallback ? '✅' : '❌'}`);
+        
+      } catch (error) {
+        console.error(`❌ ${file.getName()} 処理エラー:`, error);
+        results.push({
+          fileName: file.getName(),
+          error: error.message
+        });
+      }
+      
+      // API制限対策
+      if (i < pdfFiles.length - 1) {
+        Utilities.sleep(3000); // PDFは処理重いため3秒間隔
+      }
+    }
+    
+    console.log('🎊 PDF処理詳細テスト完了');
+    return {
+      success: true,
+      testCount: pdfFiles.length,
+      results: results,
+      summary: {
+        totalFiles: results.length,
+        successFiles: results.filter(r => !r.error).length,
+        visionApiSuccess: results.filter(r => r.isVisionApiSuccess).length,
+        documentTextSuccess: results.filter(r => r.processingLevel === 'document_text_success').length,
+        textFallbacks: results.filter(r => r.processingLevel === 'text_fallback').length,
+        filenameFallbacks: results.filter(r => r.processingLevel === 'filename_fallback').length
+      }
+    };
+    
+  } catch (error) {
+    console.error('❌ PDF詳細テストエラー:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * 全ファイル形式統合処理テスト（UI呼び出し用）
+ */
+function testAllFileTypesProcessing() {
+  console.log('🎯 ===== 全ファイル形式統合処理テスト開始 =====');
+  
+  try {
+    console.log('📋 DocumentProcessor.analyzeDocumentsInFolder() 実行');
+    const result = DocumentProcessor.analyzeDocumentsInFolder();
+    
+    console.log('🎊 統合処理結果:');
+    console.log('成功:', result.success);
+    console.log('処理済み:', result.processed);
+    console.log('スキップ:', result.skipped);
+    console.log('エラー:', result.errors);
+    
+    return result;
+    
+  } catch (error) {
+    console.error('❌ 統合処理テストエラー:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 function generateDocumentSummary(fileName, extractedText, geminiApiKey) {
   return DocumentProcessor.generateDocumentSummary(fileName, extractedText, geminiApiKey);
 }

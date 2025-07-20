@@ -79,16 +79,45 @@ class DocumentProcessor {
     ];
     
     console.log('🔍 ステップ3: ファイル処理開始');
+    console.log(`📋 対応ファイル形式: ${supportedTypes.map(t => t.name).join(', ')}`);
     
-    // 現在はPDFのみ処理（効率化）
-    const result = this.processFilesByType(folder, sheet, config, supportedTypes[2]); // PDF
+    // 全ファイル形式を順次処理
+    const allResults = { processed: 0, skipped: 0, errors: 0, log: [] };
+    
+    for (let i = 0; i < supportedTypes.length; i++) {
+      const fileType = supportedTypes[i];
+      console.log(`🔄 ${fileType.name}ファイル処理開始...`);
+      
+      try {
+        const result = this.processFilesByType(folder, sheet, config, fileType);
+        
+        allResults.processed += result.processed;
+        allResults.skipped += result.skipped;
+        allResults.errors += result.errors;
+        allResults.log.push(...result.log);
+        
+        console.log(`✅ ${fileType.name}処理完了: 処理=${result.processed}, スキップ=${result.skipped}, エラー=${result.errors}`);
+        
+        // ファイル形式間の処理間隔
+        if (i < supportedTypes.length - 1) {
+          Utilities.sleep(1000);
+        }
+        
+      } catch (error) {
+        console.error(`❌ ${fileType.name}処理エラー:`, error);
+        allResults.errors++;
+        allResults.log.push(`${fileType.name}処理エラー: ${error.message}`);
+      }
+    }
+    
+    console.log(`🎯 全ファイル形式処理完了: 総処理=${allResults.processed}, 総スキップ=${allResults.skipped}, 総エラー=${allResults.errors}`);
     
     return {
       success: true,
-      processed: result.processed,
-      skipped: result.skipped,
-      errors: result.errors,
-      log: result.log
+      processed: allResults.processed,
+      skipped: allResults.skipped,
+      errors: allResults.errors,
+      log: allResults.log
     };
   }
 
@@ -224,6 +253,21 @@ class DocumentProcessor {
         return this.extractTextFromPDF(file, apiKey);
       }
       
+      // JPEG/PNG画像処理
+      const fileName = file.getName();
+      const fileSize = file.getSize();
+      
+      if (mimeType === MimeType.JPEG) {
+        console.log('📸 JPEG画像処理開始');
+        console.log(`   ファイル名: ${fileName}`);
+        console.log(`   ファイルサイズ: ${Utils.formatFileSize(fileSize)}`);
+        console.log('   OCR最適化モード: JPEG画像専用');
+      } else if (mimeType === MimeType.PNG) {
+        console.log('🖼️ PNG画像処理開始');
+        console.log(`   ファイル名: ${fileName}`);
+        console.log(`   ファイルサイズ: ${Utils.formatFileSize(fileSize)}`);
+      }
+      
       return this.extractTextFromImage(file, apiKey);
       
     } catch (error) {
@@ -256,6 +300,14 @@ class DocumentProcessor {
           {
             'type': 'DOCUMENT_TEXT_DETECTION',
             'maxResults': 10
+          },
+          {
+            'type': 'LABEL_DETECTION',
+            'maxResults': 20
+          },
+          {
+            'type': 'IMAGE_PROPERTIES',
+            'maxResults': 5
           }
         ],
         'imageContext': {
@@ -285,13 +337,131 @@ class DocumentProcessor {
   }
 
   /**
-   * PDFからテキストを抽出
+   * 高度なVision API段階的処理 (sample.gsベース)
    * @param {DriveApp.File} file PDFファイル
-   * @param {string} apiKey APIキー
+   * @param {string} apiKey Vision APIキー
+   * @returns {string} 抽出されたテキスト
+   */
+  static tryAdvancedVisionAPIProcessing(file, apiKey) {
+    const blob = file.getBlob();
+    const base64 = Utilities.base64Encode(blob.getBytes());
+    
+    // 処理段階を配列で定義（sample.gsと同じ）
+    const processingSteps = [
+      {
+        name: 'DOCUMENT_TEXT_DETECTION',
+        payload: {
+          'requests': [{
+            'image': { 'content': base64 },
+            'features': [{ 'type': 'DOCUMENT_TEXT_DETECTION', 'maxResults': 1 }],
+            'imageContext': { 'languageHints': ['ja', 'en'] }
+          }]
+        }
+      },
+      {
+        name: 'TEXT_DETECTION (高精度)',
+        payload: {
+          'requests': [{
+            'image': { 'content': base64 },
+            'features': [{ 'type': 'TEXT_DETECTION', 'maxResults': 10 }],
+            'imageContext': { 
+              'languageHints': ['ja', 'en'],
+              'textDetectionParams': { 'enableTextDetectionConfidenceScore': true }
+            }
+          }]
+        }
+      },
+      {
+        name: 'TEXT_DETECTION (シンプル)',
+        payload: {
+          'requests': [{
+            'image': { 'content': base64 },
+            'features': [{ 'type': 'TEXT_DETECTION', 'maxResults': 1 }]
+          }]
+        }
+      }
+    ];
+    
+    // 各段階を順番に試行
+    for (const step of processingSteps) {
+      console.log(`🔍 ${step.name} を試行中...`);
+      
+      try {
+        const response = UrlFetchApp.fetch(
+          'https://vision.googleapis.com/v1/images:annotate?key=' + apiKey,
+          {
+            'method': 'POST',
+            'headers': { 'Content-Type': 'application/json' },
+            'payload': JSON.stringify(step.payload),
+            'muteHttpExceptions': true
+          }
+        );
+        
+        const result = JSON.parse(response.getContentText());
+        const extractedText = this.parseAdvancedVisionResponse(result);
+        
+        if (extractedText && extractedText !== '読み取れませんでした') {
+          console.log(`✅ ${step.name} 成功`);
+          return extractedText;
+        }
+        
+      } catch (error) {
+        console.log(`❌ ${step.name} エラー: ${error.message}`);
+        continue;
+      }
+      
+      // 処理間隔
+      Utilities.sleep(500);
+    }
+    
+    return null;
+  }
+
+  /**
+   * 高度なVision APIレスポンス解析
+   * @param {Object} result Vision APIレスポンス
+   * @returns {string} 抽出されたテキスト
+   */
+  static parseAdvancedVisionResponse(result) {
+    try {
+      if (!result.responses || !result.responses[0]) {
+        return '読み取れませんでした';
+      }
+      
+      const response = result.responses[0];
+      
+      if (response.error) {
+        console.log(`API エラー: ${response.error.message}`);
+        return '読み取れませんでした';
+      }
+      
+      // フルテキストアノテーション（最高精度）
+      if (response.fullTextAnnotation && response.fullTextAnnotation.text) {
+        return response.fullTextAnnotation.text.trim();
+      }
+      
+      // テキストアノテーション
+      if (response.textAnnotations && response.textAnnotations.length > 0) {
+        return response.textAnnotations[0].description.trim();
+      }
+      
+      return '読み取れませんでした';
+      
+    } catch (error) {
+      console.error('レスポンス解析エラー:', error);
+      return '読み取れませんでした';
+    }
+  }
+
+
+  /**
+   * PDFからテキストを抽出 (高度なVision API処理版)
+   * @param {DriveApp.File} file PDFファイル
+   * @param {string} apiKey Vision APIキー
    * @returns {string} 抽出されたテキスト
    */
   static extractTextFromPDF(file, apiKey) {
-    console.log('📄 PDF処理を開始します...');
+    console.log('📄 PDF処理を開始します... (高度なVision API処理版)');
     
     const fileName = file.getName();
     const fileSize = file.getSize();
@@ -302,14 +472,34 @@ class DocumentProcessor {
     console.log(`   サイズ: ${Utils.formatFileSize(fileSize)}`);
     console.log(`   更新日: ${lastModified.toLocaleDateString()}`);
     
-    let extractedText = '';
+    // Phase 1: 高度なVision API段階的処理 (sample.gsベース)
+    console.log('🔍 Phase 1: 高度なPDF処理を試行...');
     
     try {
-      // PDFをVision APIで直接処理を試行
-      const blob = file.getBlob();
-      const base64 = Utilities.base64Encode(blob.getBytes());
+      const advancedResult = this.tryAdvancedVisionAPIProcessing(file, apiKey);
       
-      console.log('🔍 PDFをVision APIで直接処理を試行中...');
+      if (advancedResult && advancedResult !== '読み取れませんでした') {
+        console.log('✅ 高度なPDF処理成功');
+        return advancedResult;
+      } else {
+        console.log('⚠️ 高度なPDF処理失敗 - 標準処理に移行...');
+      }
+    } catch (advancedError) {
+      console.log('⚠️ 高度なPDF処理エラー:', advancedError.message);
+      console.log('🔄 標準Vision API処理に移行...');
+    }
+    
+    // Phase 2: Vision APIフォールバック処理
+    let extractedText = '';
+    
+    // base64エンコードを事前に実行（フォールバック処理でも使用）
+    const blob = file.getBlob();
+    const base64 = Utilities.base64Encode(blob.getBytes());
+    
+    try {
+      console.log('🔍 Phase 2: Vision APIでPDF処理を試行...');
+      
+      console.log('📄 Vision API最適化モード: 文書テキスト検出専用');
       
       const payload = {
         'requests': [{
@@ -348,7 +538,8 @@ class DocumentProcessor {
       extractedText = this.parseVisionApiResponse(result);
       
       if (extractedText && extractedText !== '読み取れませんでした') {
-        console.log('✅ PDFから直接テキスト抽出成功');
+        console.log('✅ Vision API処理成功');
+        return extractedText;
       } else {
         throw new Error('Vision APIでPDF処理失敗');
       }
@@ -356,11 +547,56 @@ class DocumentProcessor {
     } catch (visionError) {
       console.log('⚠️ Vision APIでのPDF処理に失敗:', visionError.message);
       
-      // ファイル名ベースの情報生成
-      extractedText = this.generateFileBasedInfo(fileName, fileSize, lastModified);
+      // Vision API TEXT_DETECTIONフォールバック
+      if (visionError.message.includes('Bad image data') || visionError.message.includes('image data')) {
+        console.log('🔄 Phase 3: Vision API TEXT_DETECTIONフォールバック...');
+        
+        try {
+          const pdfFallbackPayload = {
+            'requests': [{
+              'image': {
+                'content': base64
+              },
+              'features': [
+                {
+                  'type': 'TEXT_DETECTION',
+                  'maxResults': 50
+                }
+              ],
+              'imageContext': {
+                'languageHints': ['ja', 'en']
+              }
+            }]
+          };
+          
+          const fallbackResponse = UrlFetchApp.fetch(
+            'https://vision.googleapis.com/v1/images:annotate?key=' + apiKey,
+            {
+              'method': 'POST',
+              'headers': { 'Content-Type': 'application/json' },
+              'payload': JSON.stringify(pdfFallbackPayload)
+            }
+          );
+          
+          const fallbackResult = JSON.parse(fallbackResponse.getContentText());
+          extractedText = this.parseVisionApiResponse(fallbackResult);
+          
+          if (extractedText && extractedText !== '読み取れませんでした') {
+            console.log('✅ Vision API フォールバック処理成功');
+            return extractedText;
+          } else {
+            throw new Error('Vision API フォールバック処理も失敗');
+          }
+          
+        } catch (fallbackError) {
+          console.log('⚠️ Vision API フォールバック処理も失敗:', fallbackError.message);
+        }
+      }
     }
     
-    return extractedText;
+    // Phase 4: 最終フォールバック - ファイル名ベース情報生成
+    console.log('📝 Phase 4: ファイル名ベース情報生成 (最終フォールバック)');
+    return this.generateFileBasedInfo(fileName, fileSize, lastModified);
   }
 
   /**
@@ -374,7 +610,8 @@ class DocumentProcessor {
       
       if (response_data.error) {
         console.error('Vision API エラー:', response_data.error);
-        return 'Vision APIエラー: ' + response_data.error.message;
+        // エラーの場合は例外をスローしてcatch文で適切にハンドリング
+        throw new Error('Vision API エラー: ' + response_data.error.message);
       }
       
       let extractedText = '';
@@ -390,15 +627,59 @@ class DocumentProcessor {
         console.log('✅ 通常テキスト検出で抽出成功');
       }
       
-      if (extractedText) {
-        extractedText = Utils.cleanText(extractedText);
-        console.log(`📝 抽出されたテキスト長: ${extractedText.length}文字`);
-        console.log(`📄 抽出内容プレビュー: ${extractedText.substring(0, 100)}...`);
-        return extractedText;
+      // ラベル検出情報を追加（画像認識強化）
+      let labelInfo = '';
+      if (response_data.labelAnnotations && response_data.labelAnnotations.length > 0) {
+        console.log('🏷️ ラベル検出情報を追加');
+        const labels = response_data.labelAnnotations
+          .filter(label => label.score > 0.7) // 信頼度70%以上
+          .slice(0, 10) // 上位10件
+          .map(label => `${label.description}(${Math.round(label.score * 100)}%)`)
+          .join(', ');
+        
+        if (labels) {
+          labelInfo = `\n\n画像内容: ${labels}`;
+          console.log(`🏷️ 検出ラベル: ${labels}`);
+        }
+      }
+      
+      // 色情報を追加（IMAGE_PROPERTIES）
+      let colorInfo = '';
+      if (response_data.imagePropertiesAnnotation && response_data.imagePropertiesAnnotation.dominantColors) {
+        const colors = response_data.imagePropertiesAnnotation.dominantColors.colors
+          .slice(0, 3) // 上位3色
+          .map(color => {
+            const r = Math.round(color.color.red || 0);
+            const g = Math.round(color.color.green || 0);
+            const b = Math.round(color.color.blue || 0);
+            return `RGB(${r},${g},${b})`;
+          })
+          .join(', ');
+        
+        if (colors) {
+          colorInfo = `\n主要色: ${colors}`;
+          console.log(`🎨 主要色情報: ${colors}`);
+        }
+      }
+      
+      // テキスト + ラベル + 色情報を統合
+      const finalText = extractedText + labelInfo + colorInfo;
+      
+      if (finalText && finalText.trim() !== '') {
+        const cleanedText = Utils.cleanText(finalText);
+        console.log(`📝 統合テキスト長: ${cleanedText.length}文字`);
+        console.log(`📄 統合内容プレビュー: ${cleanedText.substring(0, 100)}...`);
+        
+        // テキストが少ない場合はラベル情報を重視
+        if (extractedText.length < 50 && labelInfo) {
+          console.log('📸 テキスト少量 - ラベル情報を重視した画像認識結果');
+        }
+        
+        return cleanedText;
       }
     }
     
-    console.log('⚠️ テキストが検出されませんでした');
+    console.log('⚠️ テキスト・画像内容が検出されませんでした');
     return '読み取れませんでした';
   }
 
@@ -415,6 +696,7 @@ class DocumentProcessor {
     let pdfInfo = `PDFファイル: ${fileName}\n`;
     pdfInfo += `サイズ: ${Utils.formatFileSize(fileSize)}\n`;
     pdfInfo += `更新日: ${Utils.formatDate(lastModified)}\n`;
+    pdfInfo += `処理状況: Vision API処理失敗のためファイル名解析結果\n`;
     
     const keywords = Utils.extractKeywordsFromFilename(fileName);
     if (keywords.length > 0) {
@@ -519,6 +801,34 @@ class DocumentProcessor {
 
 簡潔で検索しやすい形式で200文字以内にまとめてください。
 `;
+  }
+
+  /**
+   * MIME TypeからファイルタイプNameを取得
+   * @param {string} mimeType MIMEタイプ
+   * @returns {string} ファイルタイプ名
+   */
+  static getFileTypeFromMime(mimeType) {
+    switch (mimeType) {
+      case MimeType.JPEG: return 'JPEG';
+      case MimeType.PNG: return 'PNG';
+      case MimeType.PDF: return 'PDF';
+      default: return 'Unknown';
+    }
+  }
+
+  /**
+   * ファイル形式に応じたアイコンを取得
+   * @param {string} mimeType MIMEタイプ
+   * @returns {string} アイコン文字
+   */
+  static getFileTypeIcon(mimeType) {
+    switch (mimeType) {
+      case MimeType.JPEG: return '📸';
+      case MimeType.PNG: return '🖼️';
+      case MimeType.PDF: return '📄';
+      default: return '📁';
+    }
   }
 }
 

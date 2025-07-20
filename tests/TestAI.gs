@@ -353,3 +353,125 @@ function runAIComprehensiveTest() {
   console.log('🚀 ===== AI機能包括的テスト完了 =====');
   return results;
 }
+
+/**
+ * JPEG画像処理専用テスト
+ */
+function testJpegProcessing() {
+  console.log('📸 ===== JPEG画像処理テスト開始 =====');
+  
+  try {
+    console.log('📋 ステップ1: 設定確認');
+    const config = ConfigManager.getConfig();
+    if (!config.folderId) {
+      console.error('❌ フォルダIDが設定されていません');
+      return { success: false, error: 'フォルダID未設定' };
+    }
+    
+    console.log('📁 ステップ2: フォルダ内JPEG画像検索');
+    const folder = DriveApp.getFolderById(config.folderId);
+    const files = folder.getFiles();
+    
+    let jpegFiles = [];
+    while (files.hasNext()) {
+      const file = files.next();
+      const mimeType = file.getBlob().getContentType();
+      if (mimeType === MimeType.JPEG || mimeType === 'image/jpeg') {
+        jpegFiles.push({
+          file: file,
+          name: file.getName(),
+          size: file.getSize(),
+          mimeType: mimeType
+        });
+      }
+    }
+    
+    console.log(`📊 JPEG画像検出結果: ${jpegFiles.length}件`);
+    jpegFiles.forEach((item, index) => {
+      console.log(`  ${index + 1}. ${item.name} (${Utils.formatFileSize(item.size)})`);
+    });
+    
+    if (jpegFiles.length === 0) {
+      console.log('⚠️ JPEG画像が見つかりませんでした。テスト用JPEG画像をフォルダに追加してください。');
+      return { success: false, error: 'JPEG画像なし' };
+    }
+    
+    console.log('🔬 ステップ3: JPEG処理テスト（最初の1ファイル）');
+    const testFile = jpegFiles[0];
+    
+    console.log(`📸 テスト対象: ${testFile.name}`);
+    
+    // Vision API でのOCR処理テスト
+    const visionApiKey = config.visionApiKey;
+    if (!visionApiKey) {
+      console.error('❌ Vision APIキーが設定されていません');
+      return { success: false, error: 'Vision APIキー未設定' };
+    }
+    
+    console.log('🔍 Vision API OCR処理開始...');
+    const extractedText = DocumentProcessor.extractTextFromFile(testFile.file, visionApiKey, testFile.mimeType);
+    
+    console.log('📝 OCR結果:');
+    console.log('文字数:', extractedText.length);
+    console.log('内容（最初の200文字）:', extractedText.substring(0, 200) + (extractedText.length > 200 ? '...' : ''));
+    
+    // AI要約生成テスト
+    console.log('🤖 AI要約生成テスト...');
+    const geminiApiKey = config.geminiApiKey;
+    if (!geminiApiKey) {
+      console.error('❌ Gemini APIキーが設定されていません');
+      return { success: false, error: 'Gemini APIキー未設定' };
+    }
+    
+    const aiSummary = DocumentProcessor.generateDocumentSummary(extractedText, testFile.name, geminiApiKey);
+    
+    console.log('🎯 AI要約結果:');
+    console.log('要約文字数:', aiSummary.length);
+    console.log('要約内容:', aiSummary);
+    
+    console.log('✅ JPEG処理テスト完了');
+    return {
+      success: true,
+      jpegCount: jpegFiles.length,
+      testFile: testFile.name,
+      extractedTextLength: extractedText.length,
+      aiSummaryLength: aiSummary.length,
+      extractedText: extractedText.substring(0, 500),
+      aiSummary: aiSummary
+    };
+    
+  } catch (error) {
+    console.error('❌ JPEG処理テストエラー:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * 全ファイル形式統合処理テスト
+ */
+function testAllFileTypesProcessing() {
+  console.log('🎯 ===== 全ファイル形式統合処理テスト開始 =====');
+  
+  try {
+    console.log('📋 DocumentProcessor.analyzeDocumentsInFolder() 実行');
+    const result = DocumentProcessor.analyzeDocumentsInFolder();
+    
+    console.log('🎊 統合処理結果:');
+    console.log('成功:', result.success);
+    console.log('処理済み:', result.processed);
+    console.log('スキップ:', result.skipped);
+    console.log('エラー:', result.errors);
+    console.log('ログ件数:', result.log.length);
+    
+    console.log('📊 処理ログ詳細:');
+    result.log.forEach((logEntry, index) => {
+      console.log(`  ${index + 1}. ${logEntry}`);
+    });
+    
+    return result;
+    
+  } catch (error) {
+    console.error('❌ 統合処理テストエラー:', error);
+    return { success: false, error: error.message };
+  }
+}

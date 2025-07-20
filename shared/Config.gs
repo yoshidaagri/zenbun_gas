@@ -36,7 +36,7 @@ class ConfigManager {
     console.log('   GEMINI_API_KEY: Google AI Studio Gemini APIキー');
     console.log('');
     console.log('または、以下の関数を実行:');
-    console.log('ConfigManager.setApiKeys("your_vision_key", "your_gemini_key")');
+    console.log('ConfigManager.setApiKeys("vision_key", "gemini_key")');
     
     // 現在の設定状況確認
     const properties = PropertiesService.getScriptProperties().getProperties();
@@ -48,6 +48,7 @@ class ConfigManager {
       return false;
     }
   }
+
 
   /**
    * スクリプトプロパティにスプレッドシートとフォルダのIDを設定
@@ -152,6 +153,7 @@ class ConfigManager {
       geminiApiKey: properties.GEMINI_API_KEY
     };
   }
+
 
   /**
    * 設定確認
