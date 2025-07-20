@@ -277,63 +277,122 @@ class DocumentProcessor {
   }
 
   /**
-   * 画像からテキストを抽出
+   * 画像読み込み (Gemini 1.5 Flash方式)
+   * @param {DriveApp.File} imageFile 画像ファイル
+   * @param {string} geminiApiKey Gemini APIキー
+   * @returns {string} 抽出されたキーワード情報
+   */
+  static extractTextFromImageViaGemini(imageFile, geminiApiKey) {
+    console.log('🤖 画像読み込み (Gemini 1.5 Flash方式) 開始...');
+    
+    const fileName = imageFile.getName();
+    const fileId = imageFile.getId();
+    const fileSize = imageFile.getSize();
+    const mimeType = imageFile.getBlob().getContentType();
+    
+    try {
+      console.log(`📸 ファイル情報: ${fileName} (${Utils.formatFileSize(fileSize)}, ${mimeType})`);
+      
+      // Step 1: Gemini File APIにアップロード
+      console.log('📤 Step 1: Gemini File APIアップロード...');
+      const uploadResult = GeminiFileAPI.uploadFileToGemini(fileId);
+      
+      if (!uploadResult.success) {
+        throw new Error(`File APIアップロード失敗: ${uploadResult.error}`);
+      }
+      
+      console.log(`✅ アップロード成功: ${uploadResult.fileUri}`);
+      
+      // Step 2: 画像解析用プロンプト作成
+      const imagePrompt = this.createImageAnalysisPrompt(fileName, mimeType);
+      console.log('📝 画像解析プロンプト準備完了');
+      
+      // Step 3: チャットセッション作成 (システム指示付き)
+      console.log('💬 Step 3: チャットセッション作成...');
+      const chatSession = GeminiFileAPI.createChatSession(
+        uploadResult.fileUri, 
+        '画像解析・キーワード抽出システム',
+        uploadResult.mimeType
+      );
+      
+      if (!chatSession || !chatSession.sessionId) {
+        throw new Error(`チャットセッション作成失敗: セッションオブジェクトが無効`);
+      }
+      
+      console.log(`✅ チャットセッション作成成功: ${chatSession.sessionId}`);
+      
+      // Step 4: Gemini 1.5 Flashで画像解析実行
+      console.log('🔍 Step 4: 画像解析実行...');
+      const analysisResult = GeminiFileAPI.askQuestion(chatSession, imagePrompt);
+      
+      if (!analysisResult.success) {
+        throw new Error(`画像解析失敗: ${analysisResult.error}`);
+      }
+      
+      const extractedKeywords = analysisResult.response;
+      console.log(`✅ 画像解析成功: ${extractedKeywords.length}文字`);
+      console.log(`📋 キーワード内容: ${extractedKeywords.substring(0, 150)}...`);
+      
+      // Step 5: ファイルクリーンアップ (オプション)
+      try {
+        console.log('🧹 ファイルクリーンアップ...');
+        this.cleanupGeminiFile(uploadResult.fileUri, geminiApiKey);
+      } catch (cleanupError) {
+        console.warn('⚠️ ファイルクリーンアップ警告:', cleanupError.message);
+      }
+      
+      return extractedKeywords;
+      
+    } catch (error) {
+      console.log('⚠️ Gemini 画像処理失敗:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * 画像からテキストを抽出 (Gemini 1.5 Flash専用版)
    * @param {DriveApp.File} file 画像ファイル
-   * @param {string} apiKey APIキー
+   * @param {string} apiKey Vision APIキー（使用されません）
    * @returns {string} 抽出されたテキスト
    */
   static extractTextFromImage(file, apiKey) {
-    const blob = file.getBlob();
-    const base64 = Utilities.base64Encode(blob.getBytes());
+    console.log('📸 画像処理を開始します... (Gemini 1.5 Flash専用版)');
     
-    // 強化されたOCR設定
-    const payload = {
-      'requests': [{
-        'image': {
-          'content': base64
-        },
-        'features': [
-          {
-            'type': 'TEXT_DETECTION',
-            'maxResults': 50
-          },
-          {
-            'type': 'DOCUMENT_TEXT_DETECTION',
-            'maxResults': 10
-          },
-          {
-            'type': 'LABEL_DETECTION',
-            'maxResults': 20
-          },
-          {
-            'type': 'IMAGE_PROPERTIES',
-            'maxResults': 5
-          }
-        ],
-        'imageContext': {
-          'languageHints': ['ja', 'en'],
-          'textDetectionParams': {
-            'enableTextDetectionConfidenceScore': true
-          }
-        }
-      }]
-    };
+    const fileName = file.getName();
+    const fileSize = file.getSize();
+    const mimeType = file.getBlob().getContentType();
     
-    console.log('🔍 Vision API リクエスト送信中...');
+    console.log(`📋 画像ファイル情報:`);
+    console.log(`   ファイル名: ${fileName}`);
+    console.log(`   サイズ: ${Utils.formatFileSize(fileSize)}`);
+    console.log(`   形式: ${mimeType}`);
     
-    const response = UrlFetchApp.fetch(
-      'https://vision.googleapis.com/v1/images:annotate?key=' + apiKey,
-      {
-        'method': 'POST',
-        'headers': { 'Content-Type': 'application/json' },
-        'payload': JSON.stringify(payload)
+    // Gemini 1.5 Flash処理のみ実行
+    console.log('🤖 Gemini 1.5 Flash処理開始...');
+    
+    try {
+      const config = ConfigManager.getConfig();
+      if (!config.geminiApiKey) {
+        throw new Error('Gemini APIキーが設定されていません');
       }
-    );
-    
-    const result = JSON.parse(response.getContentText());
-    console.log('📥 Vision API レスポンス受信完了');
-    
-    return this.parseVisionApiResponse(result);
+      
+      const geminiResult = this.extractTextFromImageViaGemini(file, config.geminiApiKey);
+      
+      if (geminiResult && geminiResult.trim() !== '' && geminiResult !== '読み取れませんでした') {
+        console.log('✅ Gemini 1.5 Flash処理成功');
+        console.log(`📝 キーワード抽出結果: ${geminiResult.length}文字`);
+        return geminiResult;
+      } else {
+        throw new Error('Gemini 1.5 Flash処理で有効な結果が得られませんでした');
+      }
+      
+    } catch (geminiError) {
+      console.log('⚠️ Gemini 1.5 Flash処理エラー:', geminiError.message);
+      
+      // 最終フォールバック - ファイル名ベース情報生成
+      console.log('📝 最終フォールバック: ファイル名ベース情報生成');
+      return this.generateImageBasedInfo(fileName, fileSize, mimeType);
+    }
   }
 
   /**
@@ -541,6 +600,41 @@ class DocumentProcessor {
   }
 
   /**
+   * 画像ベースの情報を生成
+   * @param {string} fileName ファイル名
+   * @param {number} fileSize ファイルサイズ
+   * @param {string} mimeType MIMEタイプ
+   * @returns {string} 生成された情報
+   */
+  static generateImageBasedInfo(fileName, fileSize, mimeType) {
+    console.log('📝 画像情報ベースでテキスト生成します...');
+    
+    let imageInfo = `画像ファイル: ${fileName}\n`;
+    imageInfo += `形式: ${mimeType}\n`;
+    imageInfo += `サイズ: ${Utils.formatFileSize(fileSize)}\n`;
+    imageInfo += `処理状況: Gemini API処理失敗のためファイル名解析結果\n`;
+    
+    const keywords = Utils.extractKeywordsFromFilename(fileName);
+    if (keywords.length > 0) {
+      imageInfo += `推定キーワード: ${keywords.join(', ')}\n`;
+    }
+    
+    const detailedInfo = Utils.extractDetailedInfoFromFilename(fileName);
+    if (detailedInfo.length > 0) {
+      imageInfo += `詳細情報: ${detailedInfo.join(', ')}\n`;
+    }
+    
+    // 画像形式特有の情報
+    if (mimeType === MimeType.JPEG || mimeType === 'image/jpeg') {
+      imageInfo += `画像種別: JPEG写真・図面画像\n`;
+    } else if (mimeType === MimeType.PNG || mimeType === 'image/png') {
+      imageInfo += `画像種別: PNG図面・スクリーンショット\n`;
+    }
+    
+    return imageInfo;
+  }
+
+  /**
    * ファイル名ベースの情報を生成
    * @param {string} fileName ファイル名
    * @param {number} fileSize ファイルサイズ
@@ -553,7 +647,7 @@ class DocumentProcessor {
     let pdfInfo = `PDFファイル: ${fileName}\n`;
     pdfInfo += `サイズ: ${Utils.formatFileSize(fileSize)}\n`;
     pdfInfo += `更新日: ${Utils.formatDate(lastModified)}\n`;
-    pdfInfo += `処理状況: Vision API処理失敗のためファイル名解析結果\n`;
+    pdfInfo += `処理状況: Gemini API処理失敗のためファイル名解析結果\n`;
     
     const keywords = Utils.extractKeywordsFromFilename(fileName);
     if (keywords.length > 0) {
@@ -633,6 +727,41 @@ class DocumentProcessor {
       console.error('❌ Gemini API エラー詳細:', error);
       return ErrorHandler.handleApiError(error, 'Gemini API');
     }
+  }
+
+  /**
+   * 画像解析用プロンプトを作成
+   * @param {string} fileName ファイル名
+   * @param {string} mimeType MIMEタイプ
+   * @returns {string} プロンプト
+   */
+  static createImageAnalysisPrompt(fileName, mimeType) {
+    return `
+あなたはデザイン事務所の検索システムです。この画像から検索用キーワードを抽出してください。
+
+ファイル名: ${fileName}
+画像形式: ${mimeType}
+
+【抽出すべき項目】
+1. 図面種別（平面図、立面図、断面図、詳細図、外観、内観など）
+2. 建物・空間情報（建物名、部屋名、エリア名など）
+3. 用途・機能（住宅、店舗、オフィス、会議室、キッチンなど）
+4. 視覚的特徴（色、材質、形状、レイアウトなど）
+5. 文字情報（看板、ラベル、寸法、注釈など）
+6. 人物・物体（家具、設備、装飾など）
+7. 建築要素（柱、梁、階段、窓、扉など）
+8. 数値情報（寸法、面積、階数など）
+9. 地名・住所・固有名詞
+
+【出力形式】
+- 300文字以内で簡潔に
+- 検索しやすいキーワード形式
+- 重要度順に並べる
+- 建築・デザイン専門用語を含める
+- 画像から読み取れる文字も含める
+
+この画像の内容を詳細に解析し、上記の観点でキーワードを抽出してください。
+`;
   }
 
   /**
