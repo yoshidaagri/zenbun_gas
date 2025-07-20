@@ -1,0 +1,78 @@
+# =================================
+# デザイン事務所検索システム - Git除外設定
+# =================================
+
+# 開発ドキュメント（README.md以外）
+CLAUDE.md
+history.md
+plan.md
+LT.md
+DYNAMIC_TEST_GUIDE.md
+GAS_DEPLOY_GUIDE.md
+PROJECT_RENAME_SUMMARY.md
+SECURITY_SETUP_GUIDE.md
+REFACTORING_GUIDE.md
+
+# デバッグ・開発用ファイル
+debug_chat_format.js
+*.debug.js
+*.test.js
+
+# バックアップファイル
+backup/
+*.backup
+*.bak
+*.copy
+
+# 一時ファイル
+*.tmp
+*.temp
+temp/
+tmp/
+
+# ログファイル
+*.log
+logs/
+
+# エディタ設定
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS生成ファイル
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 機密情報ファイル（念のため）
+*apikey*
+*secret*
+*credentials*
+config.json
+.env
+.env.local
+
+# Node.js関連（将来的な拡張用）
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# 開発・テスト用一時ファイル
+test_files/
+sample_files/
+temp_uploads/
+
+# =================================
+# 公開対象ファイル（除外しない）
+# =================================
+# README.md - プロジェクト概要・セットアップ手順
+# *.gs - Google Apps Scriptファイル
+# *.html - UIファイル
+# ライセンスファイル（今後追加時）
+# LICENSE
+# CONTRIBUTING.md（今後追加時）

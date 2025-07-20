@@ -82,37 +82,74 @@ zenbun_gas/
 
 1. [Google Apps Script](https://script.google.com/) にアクセス
 2. 新しいプロジェクトを作成
-3. `code.gas` の内容をコピー&ペースト
-4. `index.html` を HTML ファイルとして追加
+3. 以下のファイルを **この順序で** 追加・コピー&ペースト：
 
-### 2. APIキーの設定
+   **📋 推奨コピー順序（依存関係順）:**
+   ```
+   1. Config.gs        ← shared/Config.gs をコピー
+   2. Utils.gs         ← shared/Utils.gs をコピー  
+   3. ErrorHandler.gs  ← shared/ErrorHandler.gs をコピー
+   4. GeminiFileAPI.gs ← analysis/GeminiFileAPI.gs をコピー
+   5. AnalysisManager.gs ← analysis/AnalysisManager.gs をコピー
+   6. Code.gs (既存を置き換え) ← main/Code.gs をコピー
+   7. index.html       ← ui/search.html をコピー
+   ```
 
-```javascript
-// code.gas内で以下を実行
-setApiKeys();
-```
+### 2. APIキーの取得
 
 必要なAPIキー:
-- **Google Cloud Vision API**: OCR処理用
-- **Gemini Flash 2.5 API**: AI要約用
+- **Google Cloud Vision API**: [Google Cloud Console](https://console.cloud.google.com/) でVision APIを有効化してAPIキー取得
+- **Gemini API**: [Google AI Studio](https://aistudio.google.com/) でAPIキー取得
 
-### 3. スプレッドシートとフォルダの設定
+### 3. スプレッドシートとフォルダの準備
 
+1. **Google Spreadsheet作成**: 新しいスプレッドシートを作成（データベース用）
+2. **Google Driveフォルダ作成**: ドキュメント保存用フォルダを作成
+3. **IDの確認**: 各URLからIDを抽出
+   - Spreadsheet ID: `https://docs.google.com/spreadsheets/d/【ここがID】/edit`
+   - Folder ID: `https://drive.google.com/drive/folders/【ここがID】`
+
+### 4. 📝 スクリプトプロパティの設定 ⭐ **重要**
+
+**セキュリティ強化のため、APIキー・IDはスクリプトプロパティで管理します：**
+
+#### 4-1. スクリプトプロパティ画面を開く
+1. GASエディタ左側の⚙️アイコン（プロジェクトの設定）をクリック
+2. 「スクリプト プロパティ」タブを選択
+3. 「スクリプト プロパティを追加」をクリック
+
+#### 4-2. 以下のプロパティを追加
+
+| プロパティ名 | 値 | 説明 |
+|-------------|----|----- |
+| `VISION_API_KEY` | AIzaSy... | Google Cloud Vision APIキー |
+| `GEMINI_API_KEY` | AIzaSy... | Gemini APIキー |
+| `SPREADSHEET_ID` | 1ABC123... | Google SpreadsheetのID |
+| `DRAWINGS_FOLDER_ID` | 1XYZ789... | Google DriveフォルダのID |
+
+#### 4-3. 設定確認テスト
 ```javascript
-// code.gas内で以下を実行
-setupIds();
+// GASエディタで以下の関数を実行
+ConfigManager.checkSetup();
 ```
 
-設定項目:
-- **スプレッドシートID**: データベース用
-- **Google DriveフォルダID**: ドキュメント保存用
+✅ 正常に設定されていれば「設定完了」メッセージが表示されます
 
-### 4. Web App デプロイ
+### 5. Web App デプロイ
 
 1. GASエディタで「デプロイ」→「新しいデプロイ」
 2. 種類: 「ウェブアプリ」
-3. アクセス権限: 「全員」
-4. デプロイ後のURLでアクセス
+3. 実行ユーザー: 「自分」
+4. アクセス権限: 「全員」
+5. デプロイ後のURLでアクセス
+
+### 6. 初回セットアップ完了テスト
+
+デプロイしたWebアプリで以下をテスト：
+
+1. **🔧 システム設定確認**: すべて✅になることを確認
+2. **🚀 新規ドキュメント解析**: テストファイルで動作確認
+3. **🔍 検索テスト**: 「全文」で検索してみる
 
 ## 📋 使用方法
 
@@ -124,11 +161,28 @@ setupIds();
 
 2. **検索実行**:
    - 検索フォームにキーワードを入力
-   - 例: 「全文」「検索」「平面図」「住宅設計」
+   - 例: 「全文」「検索」「平面図」「住宅設計」「ホテル」「レストラン」
 
 3. **結果確認**:
    - AI要約、抽出テキスト、ファイルリンクを表示
    - 「📁 ファイルを開く」で元ファイルにアクセス
+   - 「🔬 AI解析」で詳細なAI分析を開始
+
+### AI解析・チャット機能 ⭐ **NEW**
+
+1. **AI解析の開始**:
+   - 検索結果から「🔬 AI解析」ボタンをクリック
+   - ファイルが自動でAIにアップロードされる
+
+2. **AI質問応答**:
+   - 「この図面について教えてください」
+   - 「主要な寸法は何ですか？」
+   - 「この設計の特徴を説明してください」
+
+3. **継続的な会話**:
+   - AIが前の会話を記憶して一貫した回答
+   - マークダウン形式の見やすい表示
+   - 400文字以内の簡潔なレスポンス
 
 ### 管理機能
 
@@ -149,13 +203,18 @@ setupIds();
 
 ### 設定ファイル
 
-重要な設定は `code.gas` の以下の関数で管理:
+重要な設定は **スクリプトプロパティ** で安全に管理:
 
 ```javascript
-setApiKeys()    // APIキー設定
-setupIds()      // スプレッドシート・フォルダID設定
-checkSetup()    // 設定確認
+// 設定確認（推奨）
+ConfigManager.checkSetup()
+
+// 必要に応じて使用可能な設定関数
+ConfigManager.setApiKeys(visionKey, geminiKey)  // APIキー一括設定
+ConfigManager.setupIds(spreadsheetId, folderId) // ID一括設定
 ```
+
+**⚠️ 注意**: セキュリティのため、スクリプトプロパティでの設定を強く推奨します
 
 ## 🐛 トラブルシューティング
 
@@ -320,8 +379,9 @@ checkSetup()    // 設定確認
 ### 💡 活用シーン
 
 1. **上司からの依頼対応**
-   - 「昨年の田中さんの住宅図面を探して」
+   - 「昨年のホテルプロジェクトの図面を探して」
    - 「3階建ての店舗プロジェクトの詳細図が欲しい」
+   - 「レストランの平面図、どれかあったかな？」
 
 2. **プロジェクト管理**
    - 過去の類似プロジェクト参照
