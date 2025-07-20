@@ -337,131 +337,87 @@ class DocumentProcessor {
   }
 
   /**
-   * 高度なVision API段階的処理 (sample.gsベース)
-   * @param {DriveApp.File} file PDFファイル
-   * @param {string} apiKey Vision APIキー
-   * @returns {string} 抽出されたテキスト
+   * PDF読み込み (Gemini 1.5 Flash方式)
+   * @param {DriveApp.File} pdfFile PDFファイル
+   * @param {string} geminiApiKey Gemini APIキー
+   * @returns {string} 抽出されたキーワード情報
    */
-  static tryAdvancedVisionAPIProcessing(file, apiKey) {
-    const blob = file.getBlob();
-    const base64 = Utilities.base64Encode(blob.getBytes());
+  static extractTextFromPdfViaGemini(pdfFile, geminiApiKey) {
+    console.log('🤖 PDF読み込み (Gemini 1.5 Flash方式) 開始...');
     
-    // 処理段階を配列で定義（sample.gsと同じ）
-    const processingSteps = [
-      {
-        name: 'DOCUMENT_TEXT_DETECTION',
-        payload: {
-          'requests': [{
-            'image': { 'content': base64 },
-            'features': [{ 'type': 'DOCUMENT_TEXT_DETECTION', 'maxResults': 1 }],
-            'imageContext': { 'languageHints': ['ja', 'en'] }
-          }]
-        }
-      },
-      {
-        name: 'TEXT_DETECTION (高精度)',
-        payload: {
-          'requests': [{
-            'image': { 'content': base64 },
-            'features': [{ 'type': 'TEXT_DETECTION', 'maxResults': 10 }],
-            'imageContext': { 
-              'languageHints': ['ja', 'en'],
-              'textDetectionParams': { 'enableTextDetectionConfidenceScore': true }
-            }
-          }]
-        }
-      },
-      {
-        name: 'TEXT_DETECTION (シンプル)',
-        payload: {
-          'requests': [{
-            'image': { 'content': base64 },
-            'features': [{ 'type': 'TEXT_DETECTION', 'maxResults': 1 }]
-          }]
-        }
-      }
-    ];
+    const fileName = pdfFile.getName();
+    const fileId = pdfFile.getId();
+    const fileSize = pdfFile.getSize();
     
-    // 各段階を順番に試行
-    for (const step of processingSteps) {
-      console.log(`🔍 ${step.name} を試行中...`);
-      
-      try {
-        const response = UrlFetchApp.fetch(
-          'https://vision.googleapis.com/v1/images:annotate?key=' + apiKey,
-          {
-            'method': 'POST',
-            'headers': { 'Content-Type': 'application/json' },
-            'payload': JSON.stringify(step.payload),
-            'muteHttpExceptions': true
-          }
-        );
-        
-        const result = JSON.parse(response.getContentText());
-        const extractedText = this.parseAdvancedVisionResponse(result);
-        
-        if (extractedText && extractedText !== '読み取れませんでした') {
-          console.log(`✅ ${step.name} 成功`);
-          return extractedText;
-        }
-        
-      } catch (error) {
-        console.log(`❌ ${step.name} エラー: ${error.message}`);
-        continue;
-      }
-      
-      // 処理間隔
-      Utilities.sleep(500);
-    }
-    
-    return null;
-  }
-
-  /**
-   * 高度なVision APIレスポンス解析
-   * @param {Object} result Vision APIレスポンス
-   * @returns {string} 抽出されたテキスト
-   */
-  static parseAdvancedVisionResponse(result) {
     try {
-      if (!result.responses || !result.responses[0]) {
-        return '読み取れませんでした';
+      console.log(`📄 ファイル情報: ${fileName} (${Utils.formatFileSize(fileSize)})`);
+      
+      // Step 1: Gemini File APIにアップロード
+      console.log('📤 Step 1: Gemini File APIアップロード...');
+      const uploadResult = GeminiFileAPI.uploadFileToGemini(fileId);
+      
+      if (!uploadResult.success) {
+        throw new Error(`File APIアップロード失敗: ${uploadResult.error}`);
       }
       
-      const response = result.responses[0];
+      console.log(`✅ アップロード成功: ${uploadResult.fileUri}`);
       
-      if (response.error) {
-        console.log(`API エラー: ${response.error.message}`);
-        return '読み取れませんでした';
+      // Step 2: キーワード抽出用プロンプト作成
+      const keywordPrompt = this.createPdfKeywordExtractionPrompt(fileName);
+      console.log('📝 キーワード抽出プロンプト準備完了');
+      
+      // Step 3: チャットセッション作成 (システム指示付き)
+      console.log('💬 Step 3: チャットセッション作成...');
+      const chatSession = GeminiFileAPI.createChatSession(
+        uploadResult.fileUri, 
+        'PDF文書解析・キーワード抽出システム',
+        uploadResult.mimeType
+      );
+      
+      if (!chatSession || !chatSession.sessionId) {
+        throw new Error(`チャットセッション作成失敗: セッションオブジェクトが無効`);
       }
       
-      // フルテキストアノテーション（最高精度）
-      if (response.fullTextAnnotation && response.fullTextAnnotation.text) {
-        return response.fullTextAnnotation.text.trim();
+      console.log(`✅ チャットセッション作成成功: ${chatSession.sessionId}`);
+      
+      // Step 4: Gemini 1.5 FlashでPDF解析実行
+      console.log('🔍 Step 4: PDF解析実行...');
+      const analysisResult = GeminiFileAPI.askQuestion(chatSession, keywordPrompt);
+      
+      if (!analysisResult.success) {
+        throw new Error(`PDF解析失敗: ${analysisResult.error}`);
       }
       
-      // テキストアノテーション
-      if (response.textAnnotations && response.textAnnotations.length > 0) {
-        return response.textAnnotations[0].description.trim();
+      const extractedKeywords = analysisResult.response;
+      console.log(`✅ PDF解析成功: ${extractedKeywords.length}文字`);
+      console.log(`📋 キーワード内容: ${extractedKeywords.substring(0, 150)}...`);
+      
+      // Step 5: ファイルクリーンアップ (オプション)
+      try {
+        console.log('🧹 ファイルクリーンアップ...');
+        this.cleanupGeminiFile(uploadResult.fileUri, geminiApiKey);
+      } catch (cleanupError) {
+        console.warn('⚠️ ファイルクリーンアップ警告:', cleanupError.message);
       }
       
-      return '読み取れませんでした';
+      return extractedKeywords;
       
     } catch (error) {
-      console.error('レスポンス解析エラー:', error);
-      return '読み取れませんでした';
+      console.log('⚠️ Gemini PDF処理失敗:', error.message);
+      return null;
     }
   }
 
 
+
   /**
-   * PDFからテキストを抽出 (高度なVision API処理版)
+   * PDFからテキストを抽出 (Gemini 1.5 Flash専用版)
    * @param {DriveApp.File} file PDFファイル
-   * @param {string} apiKey Vision APIキー
+   * @param {string} apiKey Vision APIキー（使用されません）
    * @returns {string} 抽出されたテキスト
    */
   static extractTextFromPDF(file, apiKey) {
-    console.log('📄 PDF処理を開始します... (高度なVision API処理版)');
+    console.log('📄 PDF処理を開始します... (Gemini 1.5 Flash専用版)');
     
     const fileName = file.getName();
     const fileSize = file.getSize();
@@ -472,131 +428,32 @@ class DocumentProcessor {
     console.log(`   サイズ: ${Utils.formatFileSize(fileSize)}`);
     console.log(`   更新日: ${lastModified.toLocaleDateString()}`);
     
-    // Phase 1: 高度なVision API段階的処理 (sample.gsベース)
-    console.log('🔍 Phase 1: 高度なPDF処理を試行...');
+    // Gemini 1.5 Flash処理のみ実行
+    console.log('🤖 Gemini 1.5 Flash処理開始...');
     
     try {
-      const advancedResult = this.tryAdvancedVisionAPIProcessing(file, apiKey);
+      const config = ConfigManager.getConfig();
+      if (!config.geminiApiKey) {
+        throw new Error('Gemini APIキーが設定されていません');
+      }
       
-      if (advancedResult && advancedResult !== '読み取れませんでした') {
-        console.log('✅ 高度なPDF処理成功');
-        return advancedResult;
+      const geminiResult = this.extractTextFromPdfViaGemini(file, config.geminiApiKey);
+      
+      if (geminiResult && geminiResult.trim() !== '' && geminiResult !== '読み取れませんでした') {
+        console.log('✅ Gemini 1.5 Flash処理成功');
+        console.log(`📝 キーワード抽出結果: ${geminiResult.length}文字`);
+        return geminiResult;
       } else {
-        console.log('⚠️ 高度なPDF処理失敗 - 標準処理に移行...');
+        throw new Error('Gemini 1.5 Flash処理で有効な結果が得られませんでした');
       }
-    } catch (advancedError) {
-      console.log('⚠️ 高度なPDF処理エラー:', advancedError.message);
-      console.log('🔄 標準Vision API処理に移行...');
+      
+    } catch (geminiError) {
+      console.log('⚠️ Gemini 1.5 Flash処理エラー:', geminiError.message);
+      
+      // 最終フォールバック - ファイル名ベース情報生成
+      console.log('📝 最終フォールバック: ファイル名ベース情報生成');
+      return this.generateFileBasedInfo(fileName, fileSize, lastModified);
     }
-    
-    // Phase 2: Vision APIフォールバック処理
-    let extractedText = '';
-    
-    // base64エンコードを事前に実行（フォールバック処理でも使用）
-    const blob = file.getBlob();
-    const base64 = Utilities.base64Encode(blob.getBytes());
-    
-    try {
-      console.log('🔍 Phase 2: Vision APIでPDF処理を試行...');
-      
-      console.log('📄 Vision API最適化モード: 文書テキスト検出専用');
-      
-      const payload = {
-        'requests': [{
-          'image': {
-            'content': base64
-          },
-          'features': [
-            {
-              'type': 'DOCUMENT_TEXT_DETECTION',
-              'maxResults': 50
-            },
-            {
-              'type': 'TEXT_DETECTION',
-              'maxResults': 50
-            }
-          ],
-          'imageContext': {
-            'languageHints': ['ja', 'en'],
-            'textDetectionParams': {
-              'enableTextDetectionConfidenceScore': true
-            }
-          }
-        }]
-      };
-      
-      const response = UrlFetchApp.fetch(
-        'https://vision.googleapis.com/v1/images:annotate?key=' + apiKey,
-        {
-          'method': 'POST',
-          'headers': { 'Content-Type': 'application/json' },
-          'payload': JSON.stringify(payload)
-        }
-      );
-      
-      const result = JSON.parse(response.getContentText());
-      extractedText = this.parseVisionApiResponse(result);
-      
-      if (extractedText && extractedText !== '読み取れませんでした') {
-        console.log('✅ Vision API処理成功');
-        return extractedText;
-      } else {
-        throw new Error('Vision APIでPDF処理失敗');
-      }
-      
-    } catch (visionError) {
-      console.log('⚠️ Vision APIでのPDF処理に失敗:', visionError.message);
-      
-      // Vision API TEXT_DETECTIONフォールバック
-      if (visionError.message.includes('Bad image data') || visionError.message.includes('image data')) {
-        console.log('🔄 Phase 3: Vision API TEXT_DETECTIONフォールバック...');
-        
-        try {
-          const pdfFallbackPayload = {
-            'requests': [{
-              'image': {
-                'content': base64
-              },
-              'features': [
-                {
-                  'type': 'TEXT_DETECTION',
-                  'maxResults': 50
-                }
-              ],
-              'imageContext': {
-                'languageHints': ['ja', 'en']
-              }
-            }]
-          };
-          
-          const fallbackResponse = UrlFetchApp.fetch(
-            'https://vision.googleapis.com/v1/images:annotate?key=' + apiKey,
-            {
-              'method': 'POST',
-              'headers': { 'Content-Type': 'application/json' },
-              'payload': JSON.stringify(pdfFallbackPayload)
-            }
-          );
-          
-          const fallbackResult = JSON.parse(fallbackResponse.getContentText());
-          extractedText = this.parseVisionApiResponse(fallbackResult);
-          
-          if (extractedText && extractedText !== '読み取れませんでした') {
-            console.log('✅ Vision API フォールバック処理成功');
-            return extractedText;
-          } else {
-            throw new Error('Vision API フォールバック処理も失敗');
-          }
-          
-        } catch (fallbackError) {
-          console.log('⚠️ Vision API フォールバック処理も失敗:', fallbackError.message);
-        }
-      }
-    }
-    
-    // Phase 4: 最終フォールバック - ファイル名ベース情報生成
-    console.log('📝 Phase 4: ファイル名ベース情報生成 (最終フォールバック)');
-    return this.generateFileBasedInfo(fileName, fileSize, lastModified);
   }
 
   /**
@@ -779,6 +636,38 @@ class DocumentProcessor {
   }
 
   /**
+   * PDFキーワード抽出用プロンプトを作成
+   * @param {string} fileName ファイル名
+   * @returns {string} プロンプト
+   */
+  static createPdfKeywordExtractionPrompt(fileName) {
+    return `
+あなたはデザイン事務所の検索システムです。このPDF文書から検索用キーワードを抽出してください。
+
+ファイル名: ${fileName}
+
+【抽出すべき項目】
+1. プロジェクト名・建物名・施設名
+2. 設計種別（平面図、立面図、詳細図、配置図など）
+3. 建物用途（住宅、店舗、オフィス、病院など）
+4. 構造・仕様（RC造、木造、鉄骨造など）
+5. 重要な寸法・数値・面積
+6. 地名・住所・場所
+7. 設計者・施主・関係者名
+8. 日付・年月
+9. 特徴的な設備・要素
+
+【出力形式】
+- 300文字以内で簡潔に
+- 検索しやすいキーワード形式
+- 重要度順に並べる
+- 建築・設計専門用語を含める
+
+このPDF文書の内容を解析し、上記の観点でキーワードを抽出してください。
+`;
+  }
+
+  /**
    * AI要約用プロンプトを作成
    * @param {string} fileName ファイル名
    * @param {string} extractedText 抽出テキスト
@@ -801,6 +690,33 @@ class DocumentProcessor {
 
 簡潔で検索しやすい形式で200文字以内にまとめてください。
 `;
+  }
+
+  /**
+   * Geminiファイルクリーンアップ
+   * @param {string} fileUri ファイルURI
+   * @param {string} apiKey APIキー
+   */
+  static cleanupGeminiFile(fileUri, apiKey) {
+    try {
+      console.log(`🗑️ Geminiファイル削除: ${fileUri}`);
+      
+      const deleteUrl = `https://generativelanguage.googleapis.com/v1beta/${fileUri}?key=${apiKey}`;
+      const response = UrlFetchApp.fetch(deleteUrl, {
+        method: 'DELETE',
+        muteHttpExceptions: true
+      });
+      
+      const responseCode = response.getResponseCode();
+      if (responseCode === 200 || responseCode === 204) {
+        console.log('✅ Geminiファイル削除成功');
+      } else {
+        console.log(`⚠️ Geminiファイル削除警告: ${responseCode}`);
+      }
+      
+    } catch (error) {
+      console.warn('⚠️ Geminiファイルクリーンアップエラー:', error.message);
+    }
   }
 
   /**

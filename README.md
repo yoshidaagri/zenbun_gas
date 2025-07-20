@@ -1,6 +1,14 @@
-# 🏗️ デザイン事務所ドキュメント検索システム v2.0
+# 🏗️ デザイン事務所ドキュメント検索システム v2.1
 
-Google Apps Script (GAS) とGemini File APIを使用した、設計事務所向けの次世代AI搭載ドキュメント検索・解析システムです。過去の図面やドキュメントを自動でOCR解析・AI要約し、自然言語で検索できるだけでなく、**個別ファイルとのAIチャット機能**も搭載しています。
+Google Apps Script (GAS) とGemini File APIを使用した、設計事務所向けの次世代AI搭載ドキュメント検索・解析システムです。過去の図面やドキュメントを自動でAI解析・キーワード抽出し、自然言語で検索できるだけでなく、**個別ファイルとのAIチャット機能**も搭載しています。
+
+## 🚀 v2.1 最新アップデート
+
+### ✨ **PDF処理の革新的改善**
+- **Gemini 1.5 Flash専用PDF読み込み**: Vision APIの不安定性を解消し、PDFを直接Geminiで解析
+- **キーワード抽出特化**: 検索用キーワード抽出に特化した300文字以内のプロンプト
+- **エラー大幅削減**: "Bad image data"等のVision APIエラーを完全除去
+- **処理時間短縮**: 不要な多段階処理を排除し、単一APIによる高速処理
 
 ## 🎯 システム概要
 
@@ -13,7 +21,8 @@ Google Apps Script (GAS) とGemini File APIを使用した、設計事務所向�
 #### 🔍 **検索機能**
 - **自然言語検索**: 「田中邸の平面図」「3階建ての店舗設計」など自然な日本語で検索
 - **AI要約検索**: Gemini Flash 2.5がドキュメントの内容を自動要約したデータから検索
-- **OCR全文検索**: Google Cloud Vision APIで抽出したテキストから検索
+- **画像OCR検索**: Google Cloud Vision APIで抽出したテキストから検索（JPEG/PNG対応）
+- **PDF専用AI解析**: Gemini 1.5 FlashによるPDF直接解析・キーワード抽出
 - **複合検索**: ファイル名・内容・AI要約を横断した包括的検索
 
 #### 🤖 **AI解析・チャット機能** ⭐ **NEW**
@@ -30,24 +39,31 @@ Google Apps Script (GAS) とGemini File APIを使用した、設計事務所向�
 
 ## 🛠️ 技術スタック
 
-### アーキテクチャ v2.0
+### アーキテクチャ v2.1
 ```
-[Google Drive] → [GAS] → [OCR: Vision API] → [AI: Gemini Flash 2.5] → [Search UI]
-                  ↓                                ↓
-            [File Upload] ──────────→ [Gemini File API] → [AI Chat UI]
+[Google Drive] → [GAS] → [処理分岐] → [検索UI]
+                  ↓         ↓
+              [PDF専用]  [画像専用]
+                  ↓         ↓
+          [Gemini 1.5 Flash] [Vision API + Gemini Flash 2.5]
+                  ↓         ↓
+            [キーワード抽出] [OCR + AI要約]
+                  ↓
+            [File Upload] → [Gemini File API] → [AI Chat UI]
 ```
 
 - **フロントエンド**: HTML/CSS/JavaScript (Google Apps Script Web App)
 - **バックエンド**: Google Apps Script (モジュール化アーキテクチャ)
 - **データベース**: Google Spreadsheet
 - **ストレージ**: Google Drive
-- **OCR**: Google Cloud Vision API
-- **AI検索**: Gemini Flash 2.5 API (Vision API経由)
-- **AI解析**: Gemini File API (直接ファイルアップロード)
+- **PDF処理**: Gemini 1.5 Flash (直接解析・キーワード抽出)
+- **画像処理**: Google Cloud Vision API (OCR) + Gemini Flash 2.5 (要約)
+- **AI解析**: Gemini File API (ファイル直接アップロード)
 - **マークダウン**: marked.js (CDN)
 
 ### 主要な技術的改善点
 - **モジュール分離**: 機能別にGSファイルを分割（ConfigManager, DatabaseManager, AnalysisManager等）
+- **PDF処理革新**: Gemini 1.5 Flash専用化によるエラー除去と処理高速化
 - **エラーハンドリング**: 包括的なエラー処理とデバッグ機能
 - **レスポンス最適化**: google.script.run通信制限対策
 - **防御的プログラミング**: null/undefined安全な実装
@@ -61,17 +77,23 @@ zenbun_gas/
 ├── history.md                  # 開発履歴・作業記録
 ├── main/
 │   └── Code.gs                 # メインバックエンドロジック
-├── modules/
-│   ├── ConfigManager.gs        # 設定管理モジュール
+├── shared/                     # 共通モジュール
+│   ├── Config.gs               # 設定管理モジュール
+│   ├── Utils.gs                # ユーティリティ関数
+│   └── ErrorHandler.gs         # エラー処理
+├── core/                       # 基本処理モジュール
 │   ├── DatabaseManager.gs      # データベース操作
-│   ├── DocumentProcessor.gs    # ドキュメント処理
-│   ├── ErrorHandler.gs         # エラー処理
-│   └── Utils.gs                # ユーティリティ関数
-├── analysis/                   # AI解析モジュール ⭐ NEW
+│   ├── DocumentProcessor.gs    # ドキュメント処理（PDF特化）
+│   └── SearchEngine.gs         # 検索エンジン
+├── analysis/                   # AI解析モジュール
 │   ├── AnalysisManager.gs      # 解析セッション管理
 │   └── GeminiFileAPI.gs        # Gemini File API統合
 ├── tests/                      # テスト関数
-│   └── TestAI.gs              # AI機能テスト
+│   ├── TestAI.gs              # AI機能テスト
+│   ├── TestAnalysisManager.gs  # 解析管理テスト
+│   ├── TestGeminiFileAPI.gs    # File APIテスト
+│   ├── TestRunner.gs           # テスト実行ランナー
+│   └── IntegrationTest.gs      # 統合テスト
 └── ui/
     └── search.html             # 統合フロントエンドUI
 ```
@@ -86,13 +108,16 @@ zenbun_gas/
 
    **📋 推奨コピー順序（依存関係順）:**
    ```
-   1. Config.gs        ← shared/Config.gs をコピー
-   2. Utils.gs         ← shared/Utils.gs をコピー  
-   3. ErrorHandler.gs  ← shared/ErrorHandler.gs をコピー
-   4. GeminiFileAPI.gs ← analysis/GeminiFileAPI.gs をコピー
-   5. AnalysisManager.gs ← analysis/AnalysisManager.gs をコピー
-   6. Code.gs (既存を置き換え) ← main/Code.gs をコピー
-   7. index.html       ← ui/search.html をコピー
+   1. Config.gs          ← shared/Config.gs をコピー
+   2. Utils.gs           ← shared/Utils.gs をコピー  
+   3. ErrorHandler.gs    ← shared/ErrorHandler.gs をコピー
+   4. DatabaseManager.gs ← core/DatabaseManager.gs をコピー
+   5. DocumentProcessor.gs ← core/DocumentProcessor.gs をコピー
+   6. SearchEngine.gs    ← core/SearchEngine.gs をコピー
+   7. GeminiFileAPI.gs   ← analysis/GeminiFileAPI.gs をコピー
+   8. AnalysisManager.gs ← analysis/AnalysisManager.gs をコピー
+   9. Code.gs (既存を置き換え) ← main/Code.gs をコピー
+   10. index.html        ← ui/search.html をコピー
    ```
 
 ### 2. APIキーの取得

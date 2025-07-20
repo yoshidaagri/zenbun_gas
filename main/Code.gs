@@ -1305,6 +1305,97 @@ function generateDocumentSummary(fileName, extractedText, geminiApiKey) {
   return DocumentProcessor.generateDocumentSummary(fileName, extractedText, geminiApiKey);
 }
 
+/**
+ * Gemini 1.5 Flash PDF処理専用テスト
+ * キーワード抽出重視のPDF解析確認
+ */
+function testPdfGeminiProcessing() {
+  console.log('🤖 ===== Gemini 1.5 Flash PDF処理テスト開始 =====');
+  
+  try {
+    console.log('📋 ステップ1: 設定確認');
+    const config = ConfigManager.getConfig();
+    if (!config.folderId || !config.geminiApiKey) {
+      return { success: false, error: '設定不備: フォルダIDまたはGemini APIキーが未設定' };
+    }
+    
+    console.log('📁 ステップ2: テスト用PDF検索');
+    const folder = DriveApp.getFolderById(config.folderId);
+    const files = folder.getFiles();
+    
+    let testPdfFile = null;
+    while (files.hasNext()) {
+      const file = files.next();
+      const mimeType = file.getBlob().getContentType();
+      if (mimeType === MimeType.PDF || mimeType === 'application/pdf') {
+        testPdfFile = file;
+        break;
+      }
+    }
+    
+    if (!testPdfFile) {
+      return { success: false, error: 'テスト用PDFファイルが見つかりません' };
+    }
+    
+    console.log(`🎯 テスト対象: ${testPdfFile.getName()}`);
+    console.log(`📊 ファイルサイズ: ${Utils.formatFileSize(testPdfFile.getSize())}`);
+    
+    console.log('🔍 ステップ3: Gemini 1.5 Flash PDF解析実行');
+    const startTime = new Date();
+    
+    // Gemini PDF処理をテスト
+    const geminiResult = DocumentProcessor.extractTextFromPdfViaGemini(testPdfFile, config.geminiApiKey);
+    
+    const endTime = new Date();
+    const processingTime = (endTime - startTime) / 1000;
+    
+    console.log(`⏱️ 処理時間: ${processingTime}秒`);
+    
+    if (geminiResult && geminiResult.trim() !== '' && geminiResult !== '読み取れませんでした') {
+      console.log('✅ Gemini 1.5 Flash PDF解析成功');
+      console.log(`📄 抽出キーワード文字数: ${geminiResult.length}文字`);
+      console.log(`📝 キーワード内容: ${geminiResult.substring(0, 300)}...`);
+      
+      return {
+        success: true,
+        fileName: testPdfFile.getName(),
+        processingTime: processingTime,
+        extractedLength: geminiResult.length,
+        keywords: geminiResult.substring(0, 300),
+        method: 'Gemini 1.5 Flash File API',
+        isKeywordFocused: true
+      };
+    } else {
+      console.log('⚠️ Gemini 1.5 Flash PDF解析失敗');
+      
+      // フォールバック処理もテスト（既存のextractTextFromPDF）
+      console.log('🔄 フォールバック処理テスト');
+      const fallbackStartTime = new Date();
+      const fallbackResult = DocumentProcessor.extractTextFromPDF(testPdfFile, config.visionApiKey);
+      const fallbackEndTime = new Date();
+      const fallbackTime = (fallbackEndTime - fallbackStartTime) / 1000;
+      
+      return {
+        success: false,
+        fileName: testPdfFile.getName(),
+        geminiProcessingTime: processingTime,
+        fallbackProcessingTime: fallbackTime,
+        fallbackResult: fallbackResult ? fallbackResult.substring(0, 300) : 'フォールバックも失敗',
+        error: 'Gemini 1.5 Flash PDF解析失敗、フォールバック実行'
+      };
+    }
+    
+  } catch (error) {
+    console.error('❌ Gemini 1.5 Flash PDF処理テストエラー:', error);
+    return { 
+      success: false, 
+      error: error.message,
+      details: error.stack
+    };
+  }
+}
+
+
 // ===== システム情報関数 =====
 
 /**

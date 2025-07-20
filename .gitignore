@@ -15,6 +15,7 @@ REFACTORING_GUIDE.md
 
 # デバッグ・開発用ファイル
 debug_chat_format.js
+sample.gs
 *.debug.js
 *.test.js
 
