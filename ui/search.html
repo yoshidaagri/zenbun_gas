@@ -1,0 +1,1905 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏗️ デザイン事務所ドキュメント検索システム v2.0</title>
+  
+  <!-- Markdown parser library -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    /* カーキ色のカラーパレット */
+    :root {
+      --primary-khaki: #8B9A5B;
+      --light-khaki: #A8B373;
+      --pale-khaki: #C5D197;
+      --cream-khaki: #F5F7F0;
+      --dark-khaki: #6B7A47;
+      --accent-khaki: #9CAD6B;
+      --shadow-khaki: rgba(139, 154, 91, 0.2);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px;
+      background: linear-gradient(135deg, var(--pale-khaki) 0%, var(--cream-khaki) 100%);
+      min-height: 100vh;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    .header {
+      text-align: center;
+      background: white;
+      padding: 32px 24px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px var(--shadow-khaki);
+      margin-bottom: 24px;
+      border-left: 6px solid var(--primary-khaki);
+    }
+    
+    .header h1 {
+      margin: 0 0 16px 0;
+      color: var(--primary-khaki);
+      font-size: clamp(24px, 5vw, 32px);
+      font-weight: 700;
+    }
+    
+    .header p {
+      color: #666;
+      font-size: clamp(14px, 3vw, 16px);
+      margin: 12px 0;
+    }
+
+    .version-badge {
+      display: inline-block;
+      background: var(--accent-khaki);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+    
+    .workflow {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 20px 0;
+    }
+    
+    .workflow-step {
+      background: var(--cream-khaki);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: clamp(12px, 2.5vw, 14px);
+      color: var(--dark-khaki);
+      font-weight: 500;
+      border: 1px solid var(--pale-khaki);
+    }
+    
+    .search-container {
+      background: white;
+      padding: clamp(20px, 4vw, 30px);
+      border-radius: 16px;
+      box-shadow: 0 4px 20px var(--shadow-khaki);
+      margin-bottom: 24px;
+    }
+    
+    .search-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    
+    .search-header h2 {
+      color: var(--primary-khaki);
+      margin: 0 0 12px 0;
+      font-size: clamp(20px, 4vw, 24px);
+    }
+    
+    .search-box {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    #searchInput {
+      flex: 1;
+      min-width: 200px;
+      padding: 16px 18px;
+      border: 2px solid var(--pale-khaki);
+      border-radius: 12px;
+      font-size: clamp(14px, 3vw, 16px);
+      transition: all 0.3s ease;
+      background: var(--cream-khaki);
+    }
+    
+    #searchInput:focus {
+      outline: none;
+      border-color: var(--primary-khaki);
+      box-shadow: 0 0 0 4px var(--shadow-khaki);
+      background: white;
+    }
+    
+    #searchBtn {
+      padding: 16px 24px;
+      background: linear-gradient(135deg, var(--primary-khaki) 0%, var(--dark-khaki) 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: clamp(14px, 3vw, 16px);
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 16px var(--shadow-khaki);
+      min-width: 80px;
+      white-space: nowrap;
+    }
+    
+    #searchBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px var(--shadow-khaki);
+    }
+    
+    #searchBtn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .search-examples {
+      background: var(--cream-khaki);
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-top: 16px;
+      border: 1px solid var(--pale-khaki);
+    }
+    
+    .search-examples h4 {
+      margin: 0 0 12px 0;
+      color: var(--dark-khaki);
+      font-size: clamp(13px, 2.5vw, 14px);
+    }
+    
+    .example-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    
+    .example-tag {
+      background: white;
+      color: var(--primary-khaki);
+      padding: 6px 14px;
+      border-radius: 16px;
+      font-size: clamp(12px, 2.5vw, 13px);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid var(--pale-khaki);
+    }
+    
+    .example-tag:hover {
+      background: var(--primary-khaki);
+      color: white;
+      transform: translateY(-1px);
+    }
+    
+    .loading {
+      text-align: center;
+      padding: clamp(30px, 6vw, 50px);
+      color: #666;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px var(--shadow-khaki);
+    }
+    
+    .loading::before {
+      content: '';
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 3px solid var(--pale-khaki);
+      border-top: 3px solid var(--primary-khaki);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 12px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* 全画面ローディングオーバーレイ */
+    .full-screen-loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(45, 45, 45, 0.8);
+      backdrop-filter: blur(4px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      color: white;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+    
+    .full-screen-loading.hidden {
+      display: none;
+    }
+    
+    .loading-spinner {
+      width: 60px;
+      height: 60px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top: 4px solid var(--primary-khaki);
+      border-radius: 50%;
+      animation: spin 1.2s linear infinite;
+      margin-bottom: 24px;
+    }
+    
+    .loading-text {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    
+    .loading-subtext {
+      font-size: 14px;
+      opacity: 0.8;
+      text-align: center;
+      max-width: 300px;
+      line-height: 1.5;
+    }
+    
+    .loading-progress {
+      margin-top: 20px;
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: monospace;
+    }
+    
+    .results-container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px var(--shadow-khaki);
+      overflow: hidden;
+    }
+    
+    .results-header {
+      background: linear-gradient(135deg, var(--primary-khaki) 0%, var(--dark-khaki) 100%);
+      color: white;
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    
+    .results-header h3 {
+      margin: 0;
+      font-size: clamp(16px, 3.5vw, 20px);
+    }
+    
+    .results-count {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: clamp(12px, 2.5vw, 14px);
+      font-weight: 500;
+    }
+    
+    .result-item {
+      padding: 24px;
+      border-bottom: 1px solid var(--pale-khaki);
+      transition: background 0.2s ease;
+    }
+    
+    .result-item:hover {
+      background: var(--cream-khaki);
+    }
+    
+    .result-item:last-child {
+      border-bottom: none;
+    }
+    
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    
+    .result-title {
+      font-size: clamp(14px, 3vw, 16px);
+      font-weight: 600;
+      color: var(--dark-khaki);
+      margin: 0;
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    .result-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    .result-type {
+      background: var(--accent-khaki);
+      color: white;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: clamp(10px, 2vw, 12px);
+      font-weight: 500;
+    }
+    
+    .result-date {
+      color: #888;
+      font-size: clamp(10px, 2vw, 12px);
+    }
+    
+    .result-summary {
+      color: #555;
+      font-size: clamp(13px, 2.8vw, 14px);
+      margin: 12px 0;
+      line-height: 1.5;
+    }
+    
+    .result-preview {
+      background: var(--cream-khaki);
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: clamp(11px, 2.3vw, 12px);
+      color: #666;
+      margin: 12px 0;
+      border-left: 4px solid var(--pale-khaki);
+    }
+    
+    .result-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    
+    .action-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: clamp(12px, 2.5vw, 13px);
+      font-weight: 500;
+      transition: all 0.2s ease;
+      border: none;
+      cursor: pointer;
+    }
+    
+    .btn-primary {
+      background: var(--primary-khaki);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: var(--dark-khaki);
+      transform: translateY(-1px);
+    }
+    
+    .btn-secondary {
+      background: var(--cream-khaki);
+      color: var(--dark-khaki);
+      border: 1px solid var(--pale-khaki);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--pale-khaki);
+    }
+    
+    .no-results {
+      text-align: center;
+      padding: clamp(40px, 8vw, 60px);
+      color: #666;
+    }
+    
+    .no-results h3 {
+      color: var(--primary-khaki);
+      margin-bottom: 16px;
+      font-size: clamp(18px, 4vw, 22px);
+    }
+    
+    .management-container {
+      background: white;
+      padding: clamp(20px, 4vw, 30px);
+      border-radius: 16px;
+      box-shadow: 0 4px 20px var(--shadow-khaki);
+      margin-top: 24px;
+    }
+    
+    .management-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    
+    .management-header h3 {
+      color: var(--primary-khaki);
+      margin: 0 0 12px 0;
+      font-size: clamp(18px, 4vw, 20px);
+    }
+    
+    .management-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    
+    .mgmt-btn {
+      padding: 16px 20px;
+      background: linear-gradient(135deg, var(--light-khaki) 0%, var(--primary-khaki) 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: clamp(13px, 3vw, 14px);
+      font-weight: 600;
+      transition: all 0.3s ease;
+      text-align: center;
+    }
+    
+    .mgmt-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px var(--shadow-khaki);
+    }
+    
+    .mgmt-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .status-display {
+      background: var(--cream-khaki);
+      padding: 16px 20px;
+      border-radius: 12px;
+      border: 1px solid var(--pale-khaki);
+      margin-top: 16px;
+    }
+    
+    .status-display h4 {
+      margin: 0 0 12px 0;
+      color: var(--dark-khaki);
+      font-size: clamp(14px, 3vw, 15px);
+    }
+    
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--pale-khaki);
+      font-size: clamp(12px, 2.5vw, 13px);
+    }
+    
+    .status-item:last-child {
+      border-bottom: none;
+    }
+    
+    .status-value {
+      font-weight: 600;
+      color: var(--primary-khaki);
+    }
+
+    /* AI分析エリアのスタイル */
+    .analysis-container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px var(--shadow-khaki);
+      margin-top: 24px;
+      overflow: hidden;
+    }
+
+    .analysis-header {
+      background: linear-gradient(135deg, var(--accent-khaki) 0%, var(--primary-khaki) 100%);
+      color: white;
+      padding: 20px 24px;
+      position: relative;
+    }
+
+    .analysis-header h3 {
+      margin: 0 0 8px 0;
+      font-size: clamp(18px, 4vw, 22px);
+    }
+
+    .analysis-header p {
+      margin: 0;
+      opacity: 0.9;
+      font-size: clamp(13px, 3vw, 14px);
+    }
+
+    .close-analysis-btn {
+      position: absolute;
+      top: 20px;
+      right: 24px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background 0.2s ease;
+    }
+
+    .close-analysis-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .analysis-content {
+      padding: 24px;
+    }
+
+    .analysis-file-info {
+      background: var(--cream-khaki);
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      border: 1px solid var(--pale-khaki);
+    }
+
+    .analysis-file-info h4 {
+      margin: 0 0 8px 0;
+      color: var(--dark-khaki);
+      font-size: clamp(14px, 3vw, 16px);
+    }
+
+    #analysisFileName {
+      font-weight: 600;
+      color: var(--primary-khaki);
+      font-size: clamp(13px, 3vw, 15px);
+    }
+
+    .analysis-chat {
+      background: var(--cream-khaki);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .chat-messages {
+      max-height: 400px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+      padding: 12px;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid var(--pale-khaki);
+    }
+
+    .chat-message {
+      margin-bottom: 16px;
+      padding: 12px 16px;
+      border-radius: 12px;
+    }
+
+    .chat-message.assistant {
+      background: #f3e5f5;
+      border-left: 4px solid var(--accent-khaki);
+    }
+
+    .chat-message.user {
+      background: #e3f2fd;
+      border-left: 4px solid var(--primary-khaki);
+      margin-left: 20px;
+    }
+
+    .message-header {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--dark-khaki);
+      margin-bottom: 6px;
+    }
+
+    .message-content {
+      font-size: clamp(13px, 3vw, 14px);
+      line-height: 1.5;
+      color: #333;
+    }
+    
+    /* Markdown スタイリング */
+    .message-content h1, .message-content h2, .message-content h3, .message-content h4 {
+      color: var(--primary-khaki);
+      margin: 12px 0 8px 0;
+      font-weight: 600;
+    }
+    
+    .message-content h2 {
+      font-size: 16px;
+      border-bottom: 2px solid var(--pale-khaki);
+      padding-bottom: 4px;
+    }
+    
+    .message-content h3 {
+      font-size: 14px;
+    }
+    
+    .message-content ul, .message-content ol {
+      margin: 8px 0;
+      padding-left: 20px;
+    }
+    
+    .message-content li {
+      margin: 4px 0;
+      line-height: 1.4;
+    }
+    
+    .message-content strong {
+      color: var(--dark-khaki);
+      font-weight: 600;
+    }
+    
+    .message-content em {
+      color: var(--primary-khaki);
+      font-style: italic;
+    }
+    
+    .message-content code {
+      background: var(--pale-khaki);
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+    
+    .message-content pre {
+      background: var(--pale-khaki);
+      padding: 12px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+    
+    .message-content blockquote {
+      border-left: 4px solid var(--primary-khaki);
+      margin: 8px 0;
+      padding: 8px 0 8px 12px;
+      background: rgba(139, 154, 91, 0.05);
+      font-style: italic;
+    }
+    
+    .message-content p {
+      margin: 8px 0;
+    }
+    
+    .message-content table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 8px 0;
+      font-size: 13px;
+    }
+    
+    .message-content th, .message-content td {
+      border: 1px solid var(--pale-khaki);
+      padding: 6px 8px;
+      text-align: left;
+    }
+    
+    .message-content th {
+      background: var(--pale-khaki);
+      font-weight: 600;
+      color: var(--dark-khaki);
+    }
+
+    .question-examples {
+      margin-bottom: 16px;
+    }
+
+    .question-examples h4 {
+      margin: 0 0 12px 0;
+      color: var(--dark-khaki);
+      font-size: clamp(13px, 3vw, 14px);
+    }
+
+    .example-questions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .example-question {
+      background: white;
+      color: var(--primary-khaki);
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: clamp(11px, 2.5vw, 12px);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid var(--pale-khaki);
+    }
+
+    .example-question:hover {
+      background: var(--primary-khaki);
+      color: white;
+      transform: translateY(-1px);
+    }
+
+    .input-area {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    #analysisQuestionInput {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid var(--pale-khaki);
+      border-radius: 8px;
+      font-size: clamp(13px, 3vw, 14px);
+      resize: vertical;
+      font-family: inherit;
+      transition: border-color 0.3s ease;
+    }
+
+    #analysisQuestionInput:focus {
+      outline: none;
+      border-color: var(--primary-khaki);
+      box-shadow: 0 0 0 4px var(--shadow-khaki);
+    }
+
+    #analysisAskBtn {
+      padding: 12px 20px;
+      background: linear-gradient(135deg, var(--primary-khaki) 0%, var(--dark-khaki) 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: clamp(13px, 3vw, 14px);
+      font-weight: 600;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+    }
+
+    #analysisAskBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px var(--shadow-khaki);
+    }
+
+    #analysisAskBtn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .analysis-status {
+      background: var(--cream-khaki);
+      padding: 12px 16px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: clamp(12px, 2.5vw, 13px);
+      color: var(--dark-khaki);
+      border: 1px solid var(--pale-khaki);
+    }
+    
+    /* レスポンシブ対応 */
+    @media (max-width: 768px) {
+      .search-box {
+        flex-direction: column;
+      }
+      
+      #searchBtn {
+        width: 100%;
+      }
+      
+      .result-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .result-actions {
+        justify-content: center;
+      }
+      
+      .management-buttons {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    /* アクセシビリティ */
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+    
+    /* フォーカス管理 */
+    .focusable:focus {
+      outline: 2px solid var(--primary-khaki);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+  <!-- 全画面ローディングオーバーレイ -->
+  <div class="full-screen-loading hidden" id="fullScreenLoading">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loadingText">AI解析処理中...</div>
+    <div class="loading-subtext" id="loadingSubtext">ファイルをGeminiで解析し、AI回答を生成しています</div>
+    <div class="loading-progress" id="loadingProgress">準備中...</div>
+  </div>
+
+  <div class="header">
+    <h1>🏗️ デザイン事務所ドキュメント検索システム</h1>
+    <div class="version-badge">リファクタリング版 v2.0</div>
+    <p>過去の設計ドキュメントをAIが要約して検索可能にします</p>
+    <p>「A案件の図面」のような曖昧な依頼にもAIが対応します</p>
+    
+    <div class="workflow">
+      <span class="workflow-step">📁 Google Drive</span>
+      <span class="workflow-step">🔍 Vision API OCR</span>
+      <span class="workflow-step">🤖 Gemini AI要約</span>
+      <span class="workflow-step">📊 検索・表示</span>
+    </div>
+  </div>
+
+  <div class="search-container">
+    <div class="search-header">
+      <h2>🔍 ドキュメント検索</h2>
+      <p>ファイル名、内容、AI要約から横断検索できます</p>
+    </div>
+    
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="例: 設計, 平面図, カフェ設計..." 
+             onkeydown="if(event.key==='Enter')performSearch()">
+      <button id="searchBtn" onclick="performSearch()">検索</button>
+    </div>
+    
+    <div class="search-examples">
+      <h4>🎯 検索例 (クリックで検索)</h4>
+      <div class="example-tags">
+        <span class="example-tag" onclick="searchExample('')">全データ表示</span>
+        <span class="example-tag" onclick="searchExample('設計')">設計</span>
+        <span class="example-tag" onclick="searchExample('平面図')">平面図</span>
+        <span class="example-tag" onclick="searchExample('カフェ')">カフェ</span>
+        <span class="example-tag" onclick="searchExample('住宅')">住宅</span>
+        <span class="example-tag" onclick="searchExample('テラス')">テラス</span>
+        <span class="example-tag" onclick="searchExample('2階')">2階</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="results"></div>
+
+  <!-- AI分析エリア -->
+  <div class="analysis-container" id="analysisContainer" style="display: none;">
+    <div class="analysis-header">
+      <h3>🔬 AI ファイル分析・チャット</h3>
+      <p>選択されたファイルをAIで詳細分析し、質問応答できます</p>
+      <button class="close-analysis-btn" onclick="closeAnalysis()">✕ 分析エリアを閉じる</button>
+    </div>
+    
+    <div class="analysis-content">
+      <!-- ファイル情報表示 -->
+      <div class="analysis-file-info" id="analysisFileInfo">
+        <h4>📄 解析対象ファイル</h4>
+        <div id="analysisFileName">ファイルが選択されていません</div>
+      </div>
+      
+      <!-- チャットエリア -->
+      <div class="analysis-chat">
+        <div class="chat-messages" id="analysisChatMessages">
+          <div class="chat-message assistant">
+            <div class="message-header">🤖 Gemini AI</div>
+            <div class="message-content">
+              ファイルの解析を開始します！<br>
+              **簡潔な回答**でお答えしますので、気軽に質問してください。<br>
+              📝 マークダウン形式で見やすく表示されます。
+            </div>
+          </div>
+        </div>
+        
+        <!-- 質問入力エリア -->
+        <div class="question-input">
+          <div class="question-examples">
+            <h4>💡 質問例（クリックで入力）</h4>
+            <div class="example-questions">
+              <span class="example-question" onclick="setAnalysisQuestion('この図面の概要を教えてください')">図面の概要</span>
+              <span class="example-question" onclick="setAnalysisQuestion('主要な寸法と構造を教えて')">寸法・構造</span>
+              <span class="example-question" onclick="setAnalysisQuestion('デザインの特徴を簡潔に')">デザイン特徴</span>
+              <span class="example-question" onclick="setAnalysisQuestion('改善点を3つ教えて')">改善提案</span>
+              <span class="example-question" onclick="setAnalysisQuestion('用途と機能を教えて')">用途・機能</span>
+              <span class="example-question" onclick="setAnalysisQuestion('注意すべき点は？')">注意点</span>
+            </div>
+          </div>
+          
+          <div class="input-area">
+            <textarea id="analysisQuestionInput" placeholder="ファイルについて質問してください..." rows="3"></textarea>
+            <button id="analysisAskBtn" onclick="askAnalysisQuestion()">質問する</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- ステータス表示 -->
+      <div class="analysis-status" id="analysisStatus">
+        準備完了
+      </div>
+    </div>
+  </div>
+
+  <div class="management-container">
+    <div class="management-header">
+      <h3>⚙️ システム管理</h3>
+      <p>ドキュメント解析やシステムテストを実行できます</p>
+    </div>
+    
+    <div class="management-buttons">
+      <button class="mgmt-btn" onclick="analyzeNewDocuments()">📊 新規ドキュメント解析</button>
+      <button class="mgmt-btn" onclick="showAllDocuments()">📊 スプレッドシート表示</button>
+      <button class="mgmt-btn" onclick="testGeminiConnection()">🤖 Gemini接続テスト</button>
+      <button class="mgmt-btn" onclick="runDebugTests()">🔧 詳細デバッグ</button>
+      <button class="mgmt-btn" onclick="testAnalysisConnection()">🧪 AI分析接続テスト</button>
+      <button class="mgmt-btn" onclick="testAnalysisManagerDetails()">🔍 AnalysisManager詳細テスト</button>
+      <button class="mgmt-btn" onclick="testCreateAnalysisSessionUnit()">⚙️ セッション作成単体テスト</button>
+      <button class="mgmt-btn" onclick="checkSystemHealth()">🩺 システム健全性チェック</button>
+    </div>
+
+    <div class="status-display" id="systemStatus">
+      <h4>📊 システム状態</h4>
+      <div class="status-item">
+        <span>システムバージョン</span>
+        <span class="status-value">リファクタリング版 v2.0</span>
+      </div>
+      <div class="status-item">
+        <span>最終更新</span>
+        <span class="status-value" id="lastUpdate">-</span>
+      </div>
+      <div class="status-item">
+        <span>データベース状態</span>
+        <span class="status-value" id="dbStatus">確認中...</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // グローバル変数
+    let isSearching = false;
+    let currentSystemInfo = null;
+
+    // ページ読み込み時の初期化
+    window.addEventListener('load', function() {
+      console.log('🚀 デザイン事務所検索システム v2.0 起動');
+      updateSystemStatus();
+      
+      // 入力フィールドにフォーカス
+      document.getElementById('searchInput').focus();
+    });
+
+    // システム状態更新
+    async function updateSystemStatus() {
+      try {
+        const info = await google.script.run
+          .withSuccessHandler(updateStatusDisplay)
+          .withFailureHandler(handleError)
+          .getSystemInfo();
+      } catch (error) {
+        console.error('システム状態取得エラー:', error);
+        document.getElementById('dbStatus').textContent = 'エラー';
+      }
+    }
+
+    function updateStatusDisplay(info) {
+      currentSystemInfo = info;
+      document.getElementById('lastUpdate').textContent = info.timestamp || '-';
+      
+      if (info.config) {
+        const configStatus = Object.values(info.config).every(Boolean) ? '正常' : '設定不完全';
+        document.getElementById('dbStatus').textContent = configStatus;
+      }
+    }
+
+    // 検索機能
+    async function performSearch() {
+      const query = document.getElementById('searchInput').value.trim();
+      
+      if (isSearching) {
+        console.log('⚠️ 検索中のため処理をスキップ');
+        return;
+      }
+      
+      console.log(`🔍 検索開始: "${query}"`);
+      isSearching = true;
+      
+      const searchBtn = document.getElementById('searchBtn');
+      const originalText = searchBtn.textContent;
+      
+      try {
+        // UI更新
+        searchBtn.disabled = true;
+        searchBtn.textContent = '検索中...';
+        document.getElementById('results').innerHTML = '<div class="loading">検索中です...</div>';
+        
+        // 検索実行
+        const results = await google.script.run
+          .withSuccessHandler(displaySearchResults)
+          .withFailureHandler(handleSearchError)
+          .searchDocuments(query);
+          
+      } catch (error) {
+        console.error('検索エラー:', error);
+        handleSearchError(error);
+      } finally {
+        // UI復元
+        searchBtn.disabled = false;
+        searchBtn.textContent = originalText;
+        isSearching = false;
+      }
+    }
+
+    function displaySearchResults(results) {
+      console.log('📊 検索結果受信:', results);
+      
+      const resultsDiv = document.getElementById('results');
+      
+      if (!results || !Array.isArray(results) || results.length === 0) {
+        resultsDiv.innerHTML = `
+          <div class="results-container">
+            <div class="no-results">
+              <h3>📭 検索結果が見つかりませんでした</h3>
+              <p>検索キーワードを変更して再試行してください</p>
+              <p>または「全データ表示」ボタンで全件を確認できます</p>
+            </div>
+          </div>
+        `;
+        return;
+      }
+      
+      const resultsHtml = `
+        <div class="results-container">
+          <div class="results-header">
+            <h3>📋 検索結果</h3>
+            <div class="results-count">${results.length}件見つかりました</div>
+          </div>
+          ${results.map(result => createResultItemHtml(result)).join('')}
+        </div>
+      `;
+      
+      resultsDiv.innerHTML = resultsHtml;
+      
+      // 結果エリアまでスクロール
+      resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function createResultItemHtml(result) {
+      const fileName = result.fileName || '不明なファイル';
+      const aiSummary = result.aiSummary || '要約なし';
+      const extractedText = result.extractedText || '';
+      const fileType = result.fileType || '不明';
+      const updateDate = result.updateDate || '-';
+      const viewUrl = result.viewUrl || '#';
+      
+      return `
+        <div class="result-item">
+          <div class="result-header">
+            <h4 class="result-title">📄 ${fileName}</h4>
+            <div class="result-meta">
+              <span class="result-type">${fileType}</span>
+              <span class="result-date">${updateDate}</span>
+            </div>
+          </div>
+          
+          <div class="result-summary">${aiSummary}</div>
+          
+          ${extractedText ? `<div class="result-preview">📝 抽出テキスト: ${extractedText}</div>` : ''}
+          
+          <div class="result-actions">
+            <a href="${viewUrl}" target="_blank" class="action-btn btn-primary">📁 ファイルを開く</a>
+            <button class="action-btn btn-secondary" onclick="copyToClipboard('${fileName}')">📋 ファイル名コピー</button>
+            <button class="action-btn btn-primary" onclick="analyzeFile('${result.fileId}', '${fileName}')">🔬 AI解析</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function handleSearchError(error) {
+      console.error('検索エラー:', error);
+      document.getElementById('results').innerHTML = `
+        <div class="results-container">
+          <div class="no-results">
+            <h3>❌ 検索エラーが発生しました</h3>
+            <p>しばらく待ってから再試行してください</p>
+            <p>エラー詳細: ${error.message || error}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    // 検索例実行
+    function searchExample(query) {
+      document.getElementById('searchInput').value = query;
+      performSearch();
+    }
+
+    // 管理機能
+    async function analyzeNewDocuments() {
+      if (confirm('新規ドキュメント解析を実行しますか？\n※ 処理に時間がかかる場合があります')) {
+        try {
+          showLoadingStatus('📊 新規ドキュメント解析中...');
+          
+          const result = await google.script.run
+            .withSuccessHandler(handleAnalysisResult)
+            .withFailureHandler(handleError)
+            .analyzeDocuments();
+            
+        } catch (error) {
+          handleError(error);
+        }
+      }
+    }
+
+    function handleAnalysisResult(result) {
+      hideLoadingStatus();
+      
+      if (result.success) {
+        alert(`✅ 解析完了\n処理: ${result.processed}件\nスキップ: ${result.skipped}件\nエラー: ${result.errors}件`);
+        updateSystemStatus();
+      } else {
+        alert(`❌ 解析エラー\n${result.error}`);
+      }
+    }
+
+    async function showAllDocuments() {
+      try {
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result && result.success) {
+              window.open(result.url, '_blank');
+            } else {
+              alert(`❌ スプレッドシートURL取得エラー\n${result ? result.error : '不明なエラー'}`);
+            }
+          })
+          .withFailureHandler(function(error) {
+            console.error('GAS関数呼び出しエラー:', error);
+            alert(`❌ エラーが発生しました\n${error.message || error}`);
+          })
+          .getSpreadsheetUrl();
+      } catch (error) {
+        console.error('関数実行エラー:', error);
+        alert(`❌ 実行エラー\n${error.message || error}`);
+      }
+    }
+
+    async function testGeminiConnection() {
+      try {
+        showLoadingStatus('🤖 Gemini接続テスト中...');
+        
+        await google.script.run
+          .withSuccessHandler(() => {
+            hideLoadingStatus();
+            alert('✅ Gemini接続テスト成功');
+          })
+          .withFailureHandler((error) => {
+            hideLoadingStatus();
+            alert(`❌ Gemini接続テスト失敗\n${error.message || error}`);
+          })
+          .testGemini();
+          
+      } catch (error) {
+        hideLoadingStatus();
+        handleError(error);
+      }
+    }
+
+    async function runDebugTests() {
+      if (confirm('詳細デバッグテストを実行しますか？\n※ コンソールログを確認してください')) {
+        try {
+          showLoadingStatus('🔧 デバッグテスト実行中...');
+          
+          await google.script.run
+            .withSuccessHandler(() => {
+              hideLoadingStatus();
+              alert('✅ デバッグテスト完了\nコンソールログを確認してください');
+            })
+            .withFailureHandler(handleError)
+            .runStepByStepTest();
+            
+        } catch (error) {
+          hideLoadingStatus();
+          handleError(error);
+        }
+      }
+    }
+
+    function checkSystemHealth() {
+      try {
+        showLoadingStatus('🩺 システム健全性チェック中...');
+        
+        google.script.run
+          .withSuccessHandler(displayHealthResult)
+          .withFailureHandler(function(error) {
+            hideLoadingStatus();
+            handleError(error);
+          })
+          .performHealthCheck();
+          
+      } catch (error) {
+        hideLoadingStatus();
+        handleError(error);
+      }
+    }
+
+    // AI分析接続テスト
+    function testAnalysisConnection() {
+      try {
+        showLoadingStatus('🧪 AI分析接続テスト中...');
+        console.log('🧪 AI分析接続テスト開始');
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            hideLoadingStatus();
+            console.log('🧪 テスト結果:', result);
+            
+            if (result === null || result === undefined) {
+              alert('❌ テスト失敗: GAS関数がnullを返しました\n\nGASログを確認してください。');
+            } else if (result.success) {
+              alert(`✅ AI分析接続テスト成功！\n\n詳細:\n- メッセージ: ${result.message}\n- 時刻: ${result.timestamp}\n- バージョン: ${result.gasVersion}`);
+            } else {
+              alert(`❌ テスト失敗: ${result.error}\n\n時刻: ${result.timestamp}`);
+            }
+          })
+          .withFailureHandler(function(error) {
+            hideLoadingStatus();
+            console.error('❌ テスト関数呼び出しエラー:', error);
+            alert(`❌ テスト関数呼び出しエラー\n\n${error.message || error}`);
+          })
+          .testAnalysisConnection('フロントエンドからのテスト');
+          
+      } catch (error) {
+        hideLoadingStatus();
+        console.error('❌ テスト実行例外:', error);
+        alert(`❌ テスト実行例外\n\n${error.message}`);
+      }
+    }
+
+    // AnalysisManager詳細テスト
+    function testAnalysisManagerDetails() {
+      try {
+        console.log('🔍 AnalysisManager詳細テスト開始');
+        showLoadingStatus('🔍 AnalysisManager詳細テスト中...');
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            hideLoadingStatus();
+            console.log('🔍 詳細テスト結果:', result);
+            
+            if (result === null || result === undefined) {
+              alert('❌ テスト失敗: GAS関数がnullを返しました\n\nGASログを確認してください。');
+            } else if (result.error) {
+              alert(`❌ テスト実行エラー: ${result.error}\n\n${result.summary}`);
+            } else {
+              let message = `🔍 AnalysisManager詳細テスト結果\n\n`;
+              message += `サマリー: ${result.summary}\n\n`;
+              
+              if (result.tests) {
+                message += `📋 テスト結果:\n`;
+                message += `- AnalysisManager存在: ${result.tests.analysisManagerExists ? '✅' : '❌'}\n`;
+                message += `- createMethodExists: ${result.tests.createMethodExists ? '✅' : '❌'}\n`;
+                
+                if (result.tests.dependencies) {
+                  message += `\n🔧 依存モジュール:\n`;
+                  Object.entries(result.tests.dependencies).forEach(([dep, exists]) => {
+                    message += `- ${dep}: ${exists ? '✅' : '❌'}\n`;
+                  });
+                }
+                
+                if (result.tests.sessionCreation) {
+                  message += `\n📊 セッション作成テスト:\n`;
+                  message += `- 成功: ${result.tests.sessionCreation.success ? '✅' : '❌'}\n`;
+                  message += `- sessionId: ${result.tests.sessionCreation.hasSessionId ? '✅' : '❌'}\n`;
+                  message += `- fileIds: ${result.tests.sessionCreation.hasFileIds ? '✅' : '❌'}\n`;
+                }
+              }
+              
+              if (result.errors && result.errors.length > 0) {
+                message += `\n❌ エラー:\n${result.errors.join('\n')}`;
+              }
+              
+              alert(message);
+            }
+          })
+          .withFailureHandler(function(error) {
+            hideLoadingStatus();
+            console.error('❌ 詳細テスト関数呼び出しエラー:', error);
+            alert(`❌ 詳細テスト関数呼び出しエラー\n\n${error.message || error}`);
+          })
+          .testAnalysisManagerDetails();
+          
+      } catch (error) {
+        hideLoadingStatus();
+        console.error('❌ 詳細テスト実行例外:', error);
+        alert(`❌ 詳細テスト実行例外\n\n${error.message}`);
+      }
+    }
+
+    // セッション作成単体テスト
+    function testCreateAnalysisSessionUnit() {
+      try {
+        console.log('⚙️ セッション作成単体テスト開始');
+        showLoadingStatus('⚙️ セッション作成単体テスト中...');
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            hideLoadingStatus();
+            console.log('⚙️ 単体テスト結果:', result);
+            
+            if (result === null || result === undefined) {
+              alert('❌ テスト失敗: GAS関数がnullを返しました\n\nGASログを確認してください。');
+            } else if (result.error) {
+              alert(`❌ テスト実行エラー: ${result.error}\n\n${result.summary}`);
+            } else {
+              let message = `⚙️ セッション作成単体テスト結果\n\n`;
+              message += `サマリー: ${result.summary}\n\n`;
+              
+              if (result.results) {
+                message += `📋 テストケース結果:\n`;
+                result.results.forEach((testCase, index) => {
+                  message += `\n${index + 1}. ${testCase.case}:\n`;
+                  
+                  // エラーテストケースの場合は特別な表示
+                  if (testCase.case.includes('エラーテスト')) {
+                    message += `   エラーハンドリング: ${testCase.success ? '✅ 正常' : '❌ 異常'}\n`;
+                    if (testCase.errorHandling) {
+                      message += `   判定: ${testCase.errorHandling}\n`;
+                    }
+                    if (testCase.error) {
+                      message += `   エラーメッセージ: ${testCase.error}\n`;
+                    }
+                  } else {
+                    // 通常のテストケース
+                    message += `   成功: ${testCase.success ? '✅' : '❌'}\n`;
+                    
+                    if (testCase.hasSessionId !== undefined) {
+                      message += `   sessionId: ${testCase.hasSessionId ? '✅' : '❌'}\n`;
+                    }
+                    if (testCase.isMultiFile !== undefined) {
+                      message += `   マルチファイル: ${testCase.isMultiFile ? '✅' : '❌'}\n`;
+                    }
+                  }
+                  
+                  if (testCase.isErrorResponse !== undefined && !testCase.case.includes('エラーテスト')) {
+                    message += `   エラーレスポンス: ${testCase.isErrorResponse ? '✅' : '❌'}\n`;
+                  }
+                });
+              }
+              
+              alert(message);
+            }
+          })
+          .withFailureHandler(function(error) {
+            hideLoadingStatus();
+            console.error('❌ 単体テスト関数呼び出しエラー:', error);
+            alert(`❌ 単体テスト関数呼び出しエラー\n\n${error.message || error}`);
+          })
+          .testCreateAnalysisSessionUnit();
+          
+      } catch (error) {
+        hideLoadingStatus();
+        console.error('❌ 単体テスト実行例外:', error);
+        alert(`❌ 単体テスト実行例外\n\n${error.message}`);
+      }
+    }
+
+    function displayHealthResult(result) {
+      hideLoadingStatus();
+      
+      if (result.success) {
+        const health = result.health;
+        const statusIcon = health.overall === 'healthy' ? '✅' : 
+                          health.overall === 'warning' ? '⚠️' : '❌';
+        
+        let message = `${statusIcon} システム健全性: ${health.overall}\n\n`;
+        
+        if (health.issues.length > 0) {
+          message += `問題:\n${health.issues.join('\n')}\n\n`;
+        }
+        
+        if (health.recommendations.length > 0) {
+          message += `推奨事項:\n${health.recommendations.join('\n')}`;
+        }
+        
+        alert(message);
+      } else {
+        alert(`❌ 健全性チェックエラー\n${result.error}`);
+      }
+    }
+
+
+    // ユーティリティ関数
+    function showLoadingStatus(message) {
+      document.getElementById('results').innerHTML = `<div class="loading">${message}</div>`;
+    }
+
+    function hideLoadingStatus() {
+      // 何もしない（次の処理で上書きされる）
+    }
+
+    function handleError(error) {
+      hideLoadingStatus();
+      console.error('エラー:', error);
+      alert(`❌ エラーが発生しました\n${error.message || error}`);
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        // 簡易通知
+        const originalText = event.target.textContent;
+        event.target.textContent = '✅ コピー完了';
+        setTimeout(() => {
+          event.target.textContent = originalText;
+        }, 2000);
+      }).catch(err => {
+        console.error('コピーエラー:', err);
+      });
+    }
+
+    // グローバル変数（AI分析用）
+    let currentAnalysisSession = null;
+    let analysisQuestionCounter = 0;
+    let isAnalysisProcessing = false;
+
+    // ファイル解析機能（統合版）
+    function analyzeFile(fileId, fileName) {
+      if (!fileId) {
+        alert('❌ ファイルIDが無効です');
+        return;
+      }
+      
+      console.log(`🔬 ファイル解析開始: ${fileName} (${fileId})`);
+      
+      try {
+        // 分析エリアを表示
+        showAnalysisArea(fileId, fileName);
+        
+        // 分析セッション作成と処理開始
+        startAnalysisSession(fileId, fileName);
+        
+        // 成功通知
+        const originalText = event.target.textContent;
+        event.target.textContent = '✅ 分析エリアを開きました';
+        setTimeout(() => {
+          event.target.textContent = originalText;
+        }, 3000);
+        
+        // 分析エリアまでスクロール
+        document.getElementById('analysisContainer').scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+        
+      } catch (error) {
+        console.error('ファイル解析開始エラー:', error);
+        alert(`❌ 解析開始エラー\n${error.message}`);
+      }
+    }
+
+    // 分析エリア表示
+    function showAnalysisArea(fileId, fileName) {
+      const analysisContainer = document.getElementById('analysisContainer');
+      const analysisFileName = document.getElementById('analysisFileName');
+      
+      analysisContainer.style.display = 'block';
+      analysisFileName.textContent = `📄 ${fileName}`;
+      
+      // グローバル変数をリセット
+      currentAnalysisSession = null;
+      analysisQuestionCounter = 0;
+      isAnalysisProcessing = false;
+      
+      // 質問ボタンを無効化（セッション完了まで）
+      document.getElementById('analysisAskBtn').disabled = true;
+      
+      // チャットメッセージをリセット
+      const chatMessages = document.getElementById('analysisChatMessages');
+      chatMessages.innerHTML = `
+        <div class="chat-message assistant">
+          <div class="message-header">🤖 Gemini AI</div>
+          <div class="message-content">
+            「${fileName}」の解析を開始しています...<br>
+            セッション作成完了まで少々お待ちください。
+          </div>
+        </div>
+      `;
+      
+      updateAnalysisStatus('解析準備中...');
+      
+      console.log('🔧 デバッグ: 分析エリア表示完了');
+      console.log('🔧 ファイル情報:', { fileId, fileName });
+    }
+
+    // 分析エリアを閉じる
+    function closeAnalysis() {
+      document.getElementById('analysisContainer').style.display = 'none';
+      currentAnalysisSession = null;
+      analysisQuestionCounter = 0;
+      isAnalysisProcessing = false;
+    }
+
+    // 分析セッション開始
+    function startAnalysisSession(fileId, fileName) {
+      try {
+        isAnalysisProcessing = true;
+        updateAnalysisStatus('解析セッション作成中...');
+        
+        console.log(`🔧 デバッグ: セッション作成開始 - ファイルID: ${fileId}`);
+        
+        // GAS関数呼び出し: 解析セッション作成
+        google.script.run
+          .withSuccessHandler(function(result) {
+            console.log('🔧 デバッグ: セッション作成レスポンス:', result);
+            console.log('🔧 デバッグ: レスポンスタイプ:', typeof result);
+            console.log('🔧 デバッグ: sessionId存在:', !!(result && result.sessionId));
+            console.log('🔧 デバッグ: success値:', result ? result.success : 'undefined');
+            
+            // nullまたはundefinedレスポンスの場合
+            if (result === null || result === undefined) {
+              console.error('❌ レスポンスがnull/undefinedです');
+              updateAnalysisStatus('❌ GAS関数からnullレスポンス');
+              addAnalysisMessage('assistant', '❌ GAS関数が正常に実行されませんでした。GASログを確認してください。');
+              isAnalysisProcessing = false;
+              return;
+            }
+            
+            // エラーレスポンスの場合
+            if (result && result.success === false) {
+              console.error('❌ セッション作成失敗:', result.error);
+              console.error('❌ エラー詳細:', result.details);
+              updateAnalysisStatus(`❌ セッション作成エラー: ${result.error}`);
+              addAnalysisMessage('assistant', `❌ セッション作成エラー: ${result.error}`);
+              isAnalysisProcessing = false;
+              return;
+            }
+            
+            // レスポンス構造詳細ログ
+            console.log('🔧 レスポンス詳細分析:');
+            console.log('  - result:', result);
+            console.log('  - typeof result:', typeof result);
+            console.log('  - result.sessionId:', result ? result.sessionId : 'N/A');
+            console.log('  - result.fileIds:', result ? result.fileIds : 'N/A');
+            console.log('  - result.success:', result ? result.success : 'N/A');
+            console.log('  - Object.keys(result):', result ? Object.keys(result) : 'N/A');
+            
+            // セッションIDが存在すれば処理を続行（fileIdsチェックを緩和）
+            if (result && result.sessionId) {
+              currentAnalysisSession = result;
+              console.log('✅ 解析セッション作成完了:', currentAnalysisSession.sessionId);
+              updateAnalysisStatus('セッション作成完了 - ファイル準備中...');
+              addAnalysisMessage('assistant', `✅ セッション作成完了: ${result.sessionId.substring(0, 12)}`);
+              prepareFileAnalysis(fileId);
+            } else {
+              console.error('❌ セッションIDが見つかりません:', result);
+              console.error('期待される構造: {sessionId, ...}');
+              updateAnalysisStatus('❌ セッション作成で不正なレスポンス構造');
+              addAnalysisMessage('assistant', `❌ セッションIDなし: ${JSON.stringify(result)}`);
+              isAnalysisProcessing = false;
+            }
+          })
+          .withFailureHandler(function(error) {
+            console.error('❌ セッション作成GASエラー:', error);
+            updateAnalysisStatus(`❌ システムエラー: ${error.message || error}`);
+            addAnalysisMessage('assistant', `❌ セッション作成エラー: ${error.message || error}`);
+            isAnalysisProcessing = false;
+          })
+          .createAnalysisSession(fileId);
+          
+      } catch (error) {
+        console.error('❌ 解析セッション作成例外:', error);
+        updateAnalysisStatus(`❌ セッション作成例外: ${error.message}`);
+        addAnalysisMessage('assistant', `❌ セッション作成例外: ${error.message}`);
+        isAnalysisProcessing = false;
+      }
+    }
+
+    // ファイル解析準備
+    function prepareFileAnalysis(fileId) {
+      try {
+        updateAnalysisStatus('ファイル解析準備中...');
+        console.log('🔧 デバッグ: ファイル解析準備開始');
+        console.log('🔧 デバッグ: セッション情報:', currentAnalysisSession);
+        
+        // GAS関数呼び出し: ファイル解析準備
+        google.script.run
+          .withSuccessHandler(function(result) {
+            console.log('🔧 デバッグ: ファイル準備レスポンス:', result);
+            
+            // エラーレスポンスの場合
+            if (result && result.success === false) {
+              console.error('❌ ファイル準備失敗:', result.error);
+              updateAnalysisStatus(`❌ ファイル準備エラー: ${result.error}`);
+              addAnalysisMessage('assistant', `❌ ファイル準備エラー: ${result.error}`);
+              isAnalysisProcessing = false;
+              return;
+            }
+            
+            // 正常完了の場合
+            console.log('✅ ファイル解析準備完了');
+            updateAnalysisStatus('✅ 準備完了 - 質問をどうぞ！');
+            addAnalysisMessage('assistant', '✅ ファイル解析準備完了！何でも質問してください。');
+            isAnalysisProcessing = false;
+            
+            // 質問入力を有効化
+            document.getElementById('analysisAskBtn').disabled = false;
+          })
+          .withFailureHandler(function(error) {
+            console.error('❌ ファイル準備GASエラー:', error);
+            updateAnalysisStatus(`❌ システムエラー: ${error.message || error}`);
+            addAnalysisMessage('assistant', `❌ ファイル準備システムエラー: ${error.message || error}`);
+            isAnalysisProcessing = false;
+          })
+          .prepareFileForAnalysis(currentAnalysisSession);
+          
+      } catch (error) {
+        console.error('❌ ファイル解析準備例外:', error);
+        updateAnalysisStatus(`❌ 準備例外: ${error.message}`);
+        addAnalysisMessage('assistant', `❌ ファイル準備例外: ${error.message}`);
+        isAnalysisProcessing = false;
+      }
+    }
+
+    // 質問例をセット
+    function setAnalysisQuestion(question) {
+      document.getElementById('analysisQuestionInput').value = question;
+    }
+
+    // AI質問処理
+    async function askAnalysisQuestion() {
+      const questionInput = document.getElementById('analysisQuestionInput');
+      const question = questionInput.value.trim();
+      
+      if (!question) {
+        alert('質問を入力してください');
+        return;
+      }
+      
+      // デバッグ: セッション状態確認
+      console.log('🔧 デバッグ: 質問処理開始');
+      console.log('🔧 currentAnalysisSession:', currentAnalysisSession);
+      console.log('🔧 isAnalysisProcessing:', isAnalysisProcessing);
+      
+      if (!currentAnalysisSession) {
+        const errorMsg = `分析セッションが開始されていません。
+        
+デバッグ情報:
+- セッションオブジェクト: ${currentAnalysisSession}
+- 処理中フラグ: ${isAnalysisProcessing}
+        
+「🔬 AI解析」ボタンを再度クリックして分析を開始してください。`;
+        
+        alert(errorMsg);
+        updateAnalysisStatus('❌ セッション未開始 - 再度AI解析ボタンをクリック');
+        return;
+      }
+      
+      if (isAnalysisProcessing) {
+        alert('処理中です。しばらくお待ちください。');
+        return;
+      }
+
+      try {
+        isAnalysisProcessing = true;
+        questionInput.value = '';
+        document.getElementById('analysisAskBtn').disabled = true;
+        
+        // ユーザーメッセージを追加
+        addAnalysisMessage('user', question);
+        
+        // 「回答生成中...」メッセージ
+        const loadingMessageId = addAnalysisMessage('assistant', '回答を生成中...', true);
+        
+        updateAnalysisStatus('AI回答生成中...');
+        
+        // 全画面ローディング表示
+        showFullScreenLoading('AI回答生成中...', 'Geminiで質問を処理しています（通常10-15秒）', '質問送信完了');
+        
+        // 実際のGemini API呼び出し
+        google.script.run
+          .withSuccessHandler(function(response) {
+            console.log('🔧 質問レスポンス受信:', response);
+            console.log('🔧 レスポンス型:', typeof response);
+            console.log('🔧 success値:', response?.success);
+            
+            // 全画面ローディング非表示
+            hideFullScreenLoading();
+            
+            removeAnalysisMessage(loadingMessageId);
+            
+            // null/undefined チェック
+            if (response === null || response === undefined) {
+              addAnalysisMessage('assistant', '❌ GAS関数から無効なレスポンスを受信しました');
+              updateAnalysisStatus('❌ システムエラー');
+              isAnalysisProcessing = false;
+              document.getElementById('analysisAskBtn').disabled = false;
+              return;
+            }
+            
+            if (response.success) {
+              console.log('🔧 成功レスポンス - 回答表示');
+              addAnalysisMessage('assistant', response.response);
+              analysisQuestionCounter++;
+              updateAnalysisStatus('✅ 準備完了 - 質問をどうぞ！');
+              
+              // 切り詰めメッセージの表示
+              if (response.truncated) {
+                addAnalysisMessage('assistant', '💡 回答が長いため省略されました。詳細な分析結果は履歴機能から確認できます。');
+              }
+            } else {
+              console.log('🔧 エラーレスポンス:', response.error);
+              addAnalysisMessage('assistant', `❌ エラー: ${response.error}`);
+              updateAnalysisStatus('❌ 質問処理エラー');
+            }
+            
+            isAnalysisProcessing = false;
+            document.getElementById('analysisAskBtn').disabled = false;
+          })
+          .withFailureHandler(function(error) {
+            // 全画面ローディング非表示
+            hideFullScreenLoading();
+            
+            removeAnalysisMessage(loadingMessageId);
+            addAnalysisMessage('assistant', `❌ システムエラー: ${error.message || error}`);
+            
+            updateAnalysisStatus('❌ エラーが発生しました');
+            isAnalysisProcessing = false;
+            document.getElementById('analysisAskBtn').disabled = false;
+          })
+          .processAnalysisQuestion(currentAnalysisSession, question);
+
+      } catch (error) {
+        // 全画面ローディング非表示
+        hideFullScreenLoading();
+        
+        console.error('質問処理エラー:', error);
+        updateAnalysisStatus(`❌ 質問処理エラー: ${error.message}`);
+        isAnalysisProcessing = false;
+        document.getElementById('analysisAskBtn').disabled = false;
+      }
+    }
+
+    // チャットメッセージ追加
+    function addAnalysisMessage(type, content, isLoading = false) {
+      const chatMessages = document.getElementById('analysisChatMessages');
+      const messageId = 'analysis_msg_' + Date.now();
+      
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `chat-message ${type}`;
+      messageDiv.id = messageId;
+      
+      const header = type === 'user' ? '👤 ユーザー' : '🤖 Gemini AI';
+      
+      // マークダウン解析（AIメッセージのみ）
+      let processedContent = content;
+      if (type === 'assistant' && !isLoading && typeof marked !== 'undefined') {
+        try {
+          // XSS攻撃防止のための設定
+          marked.setOptions({
+            breaks: true,
+            gfm: true,
+            sanitize: false,
+            smartLists: true,
+            smartypants: false
+          });
+          
+          processedContent = marked.parse(content);
+          console.log('🎨 マークダウン解析完了');
+        } catch (error) {
+          console.warn('⚠️ マークダウン解析エラー:', error);
+          processedContent = content; // フォールバック
+        }
+      }
+      
+      messageDiv.innerHTML = `
+        <div class="message-header">${header}</div>
+        <div class="message-content">${processedContent}</div>
+      `;
+      
+      chatMessages.appendChild(messageDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      
+      return messageId;
+    }
+
+    // チャットメッセージ削除
+    function removeAnalysisMessage(messageId) {
+      const message = document.getElementById(messageId);
+      if (message) {
+        message.remove();
+      }
+    }
+
+    // 分析ステータス更新
+    function updateAnalysisStatus(status) {
+      document.getElementById('analysisStatus').textContent = status || '準備完了';
+    }
+
+    // エンターキーで質問送信
+    document.addEventListener('DOMContentLoaded', function() {
+      const questionInput = document.getElementById('analysisQuestionInput');
+      if (questionInput) {
+        questionInput.addEventListener('keydown', function(e) {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            askAnalysisQuestion();
+          }
+        });
+      }
+    });
+
+    // 全画面ローディング制御関数
+    function showFullScreenLoading(text = 'AI処理中...', subtext = '処理中です。しばらくお待ちください。', progress = '処理開始') {
+      const loadingElement = document.getElementById('fullScreenLoading');
+      const loadingText = document.getElementById('loadingText');
+      const loadingSubtext = document.getElementById('loadingSubtext');
+      const loadingProgress = document.getElementById('loadingProgress');
+      
+      if (loadingElement) {
+        loadingText.textContent = text;
+        loadingSubtext.textContent = subtext;
+        loadingProgress.textContent = progress;
+        loadingElement.classList.remove('hidden');
+        
+        // ボディのスクロールを無効化
+        document.body.style.overflow = 'hidden';
+        
+        console.log('🔄 全画面ローディング表示:', text);
+      }
+    }
+    
+    function hideFullScreenLoading() {
+      const loadingElement = document.getElementById('fullScreenLoading');
+      
+      if (loadingElement) {
+        loadingElement.classList.add('hidden');
+        
+        // ボディのスクロールを復元
+        document.body.style.overflow = '';
+        
+        console.log('✅ 全画面ローディング非表示');
+      }
+    }
+    
+    function updateFullScreenLoadingProgress(progress) {
+      const loadingProgress = document.getElementById('loadingProgress');
+      if (loadingProgress) {
+        loadingProgress.textContent = progress;
+        console.log('📊 ローディング進捗更新:', progress);
+      }
+    }
+
+    // キーボードショートカット
+    document.addEventListener('keydown', function(e) {
+      // Ctrl+Enter で検索
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        performSearch();
+      }
+    });
+  </script>
+</body>
+</html>

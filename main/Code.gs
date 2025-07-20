@@ -1,0 +1,1055 @@
+// ===== メイン関数・Webアプリエントリーポイント =====
+
+/**
+ * Google Apps Script Webアプリケーションのメイン処理
+ * リファクタリング後の統合エントリーポイント
+ */
+
+// ===== Webアプリケーション関数 =====
+
+/**
+ * WebアプリのHTMLを返す
+ * クエリパラメータ 'page' で表示するページを指定可能
+ */
+function doGet(e) {
+  const page = e.parameter.page || 'search';
+  
+  let templateName;
+  switch (page) {
+    case 'analysis':
+      templateName = 'analysis';
+      break;
+    case 'search':
+    default:
+      templateName = 'index';
+      break;
+  }
+  
+  console.log(`📄 ページ表示: ${page} (template: ${templateName})`);
+  
+  return HtmlService.createTemplateFromFile(templateName).evaluate()
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+    .setTitle(`🏗️ デザイン事務所検索システム - ${page === 'analysis' ? 'AI解析' : '検索'}`);
+}
+
+/**
+ * HTMLファイルの内容を含む（テンプレート用）
+ * @param {string} filename ファイル名
+ */
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+// ===== 公開API関数（フロントエンドから呼び出し） =====
+
+/**
+ * ドキュメント解析実行
+ * @returns {Object} 解析結果
+ */
+function analyzeDocuments() {
+  try {
+    console.log('📊 メイン: ドキュメント解析開始');
+    const result = DocumentProcessor.analyzeDocuments();
+    console.log('📊 メイン: ドキュメント解析完了');
+    return result;
+  } catch (error) {
+    console.error('❌ メイン: ドキュメント解析エラー:', error);
+    return ErrorHandler.handleError(error, 'メインドキュメント解析', {
+      returnResult: { success: false, error: error.message }
+    });
+  }
+}
+
+/**
+ * ドキュメント検索実行
+ * @param {string} query 検索クエリ
+ * @returns {Array} 検索結果
+ */
+function searchDocuments(query) {
+  try {
+    console.log(`🔍 メイン: 検索実行 "${query}"`);
+    const results = SearchEngine.searchDocuments(query);
+    console.log(`🔍 メイン: 検索完了 ${results.length}件`);
+    return results;
+  } catch (error) {
+    console.error('❌ メイン: 検索エラー:', error);
+    return ErrorHandler.handleSearchError(error, query);
+  }
+}
+
+/**
+ * ドキュメントサマリー取得
+ * @returns {Object} サマリー情報
+ */
+function getDocumentSummary() {
+  try {
+    console.log('📊 メイン: サマリー取得開始');
+    const config = ConfigManager.getConfig();
+    const result = DatabaseManager.getDocumentSummary(config.spreadsheetId);
+    console.log('📊 メイン: サマリー取得完了');
+    return result;
+  } catch (error) {
+    console.error('❌ メイン: サマリー取得エラー:', error);
+    return ErrorHandler.handleError(error, 'メインサマリー取得', {
+      returnResult: { success: false, error: error.message }
+    });
+  }
+}
+
+/**
+ * スプレッドシートURL取得
+ * @returns {Object} URL情報
+ */
+function getSpreadsheetUrl() {
+  try {
+    console.log('📊 メイン: スプレッドシートURL取得');
+    const config = ConfigManager.getConfig();
+    const result = DatabaseManager.getSpreadsheetUrl(config.spreadsheetId);
+    console.log('📊 メイン: スプレッドシートURL取得完了');
+    return result;
+  } catch (error) {
+    console.error('❌ メイン: スプレッドシートURL取得エラー:', error);
+    return ErrorHandler.handleError(error, 'メインURL取得', {
+      returnResult: { success: false, error: error.message }
+    });
+  }
+}
+
+/**
+ * データベース健全性チェック
+ * @returns {Object} 健全性チェック結果
+ */
+function performHealthCheck() {
+  try {
+    console.log('🩺 メイン: データベース健全性チェック開始');
+    const config = ConfigManager.getConfig();
+    const result = DatabaseManager.performHealthCheck(config.spreadsheetId);
+    console.log('🩺 メイン: データベース健全性チェック完了');
+    return result;
+  } catch (error) {
+    console.error('❌ メイン: データベース健全性チェックエラー:', error);
+    return ErrorHandler.handleError(error, 'メイン健全性チェック', {
+      returnResult: { success: false, error: error.message }
+    });
+  }
+}
+
+// ===== Phase 2: Gemini File API 解析機能 =====
+
+/**
+ * 基本テスト関数（通信確認用）
+ * @param {string} testData テストデータ
+ * @returns {Object} テスト結果
+ */
+function testAnalysisConnection(testData = 'test') {
+  try {
+    console.log('🧪 テスト関数実行開始:', testData);
+    
+    const result = {
+      success: true,
+      message: 'GAS関数の実行成功',
+      timestamp: new Date().toISOString(),
+      receivedData: testData,
+      gasVersion: 'v2.0'
+    };
+    
+    console.log('🧪 テスト関数実行完了:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ テスト関数エラー:', error);
+    return {
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    };
+  }
+}
+
+/**
+ * AnalysisManager存在チェック・詳細テスト
+ * @returns {Object} 詳細テスト結果
+ */
+function testAnalysisManagerDetails() {
+  try {
+    console.log('🔍 AnalysisManager詳細テスト開始');
+    
+    const testResult = {
+      timestamp: new Date().toISOString(),
+      tests: {},
+      errors: [],
+      summary: ''
+    };
+    
+    // 1. AnalysisManagerクラス存在確認
+    console.log('📋 テスト1: AnalysisManagerクラス存在確認');
+    testResult.tests.analysisManagerExists = typeof AnalysisManager !== 'undefined';
+    console.log('  結果:', testResult.tests.analysisManagerExists);
+    
+    if (!testResult.tests.analysisManagerExists) {
+      testResult.errors.push('AnalysisManagerクラスが見つかりません');
+      testResult.summary = 'AnalysisManager.gsがGASにコピーされていません';
+      return testResult;
+    }
+    
+    // 2. createAnalysisSessionメソッド存在確認
+    console.log('📋 テスト2: createAnalysisSessionメソッド存在確認');
+    testResult.tests.createMethodExists = typeof AnalysisManager.createAnalysisSession === 'function';
+    console.log('  結果:', testResult.tests.createMethodExists);
+    
+    // 3. AnalysisManagerのメソッド一覧
+    console.log('📋 テスト3: AnalysisManagerメソッド一覧取得');
+    try {
+      const methods = Object.getOwnPropertyNames(AnalysisManager).filter(prop => typeof AnalysisManager[prop] === 'function');
+      testResult.tests.availableMethods = methods;
+      console.log('  利用可能メソッド:', methods);
+    } catch (error) {
+      testResult.errors.push('メソッド一覧取得エラー: ' + error.message);
+    }
+    
+    // 4. 依存モジュール確認
+    console.log('📋 テスト4: 依存モジュール確認');
+    const dependencies = ['ConfigManager', 'Utils', 'ErrorHandler', 'GeminiFileAPI'];
+    testResult.tests.dependencies = {};
+    
+    dependencies.forEach(dep => {
+      const exists = typeof eval(dep) !== 'undefined';
+      testResult.tests.dependencies[dep] = exists;
+      console.log(`  ${dep}: ${exists}`);
+      if (!exists) {
+        testResult.errors.push(`依存モジュール ${dep} が見つかりません`);
+      }
+    });
+    
+    // 5. 実際のセッション作成テスト（ダミーデータ）
+    if (testResult.tests.createMethodExists) {
+      console.log('📋 テスト5: ダミーデータでセッション作成テスト');
+      try {
+        const dummyFileId = 'test-dummy-file-id-12345';
+        const sessionResult = AnalysisManager.createAnalysisSession(dummyFileId);
+        
+        testResult.tests.sessionCreation = {
+          success: !!sessionResult,
+          hasSessionId: !!(sessionResult && sessionResult.sessionId),
+          hasFileIds: !!(sessionResult && sessionResult.fileIds),
+          structure: sessionResult ? Object.keys(sessionResult) : []
+        };
+        
+        console.log('  セッション作成結果:', testResult.tests.sessionCreation);
+        console.log('  セッション構造:', sessionResult ? Object.keys(sessionResult) : 'N/A');
+        
+        if (sessionResult && sessionResult.sessionId) {
+          console.log('  セッションID:', sessionResult.sessionId);
+          console.log('  ファイルIDs:', sessionResult.fileIds);
+          console.log('  ステータス:', sessionResult.status);
+        }
+        
+      } catch (sessionError) {
+        testResult.errors.push('セッション作成テストエラー: ' + sessionError.message);
+        testResult.tests.sessionCreation = { error: sessionError.message };
+        console.error('  セッション作成エラー:', sessionError);
+      }
+    }
+    
+    // 6. 結果サマリー
+    const totalTests = Object.keys(testResult.tests).length;
+    const failedTests = testResult.errors.length;
+    const passedTests = totalTests - failedTests;
+    
+    testResult.summary = `${passedTests}/${totalTests}件成功`;
+    
+    if (testResult.errors.length === 0) {
+      testResult.summary += ' - 全テスト正常';
+      console.log('✅ 全テスト正常完了');
+    } else {
+      testResult.summary += ` - ${failedTests}件エラー`;
+      console.log('❌ テストエラーあり:', testResult.errors);
+    }
+    
+    console.log('🔍 AnalysisManager詳細テスト完了');
+    return testResult;
+    
+  } catch (error) {
+    console.error('❌ 詳細テスト実行エラー:', error);
+    return {
+      timestamp: new Date().toISOString(),
+      error: error.message,
+      stack: error.stack,
+      summary: 'テスト実行中に例外エラー'
+    };
+  }
+}
+
+/**
+ * createAnalysisSession関数の単体テスト
+ * @returns {Object} 単体テスト結果
+ */
+function testCreateAnalysisSessionUnit() {
+  try {
+    console.log('🧪 createAnalysisSession単体テスト開始');
+    
+    const testResults = [];
+    
+    // テストケース1: 正常なファイルID
+    console.log('📋 テストケース1: 正常なファイルID');
+    try {
+      const result1 = createAnalysisSession('test-file-id-normal');
+      testResults.push({
+        case: '正常なファイルID',
+        success: !!result1,
+        hasSessionId: !!(result1 && result1.sessionId),
+        responseType: typeof result1,
+        sessionId: result1 ? result1.sessionId : null
+      });
+      console.log('  結果1:', result1);
+    } catch (error) {
+      testResults.push({
+        case: '正常なファイルID',
+        success: false,
+        error: error.message
+      });
+    }
+    
+    // テストケース2: nullファイルID
+    console.log('📋 テストケース2: nullファイルID');
+    try {
+      const result2 = createAnalysisSession(null);
+      testResults.push({
+        case: 'nullファイルID（エラーテスト）',
+        success: result2 && result2.success === false, // エラーが正しく返されたか
+        isErrorResponse: !!(result2 && result2.error),
+        responseType: typeof result2,
+        errorHandling: result2 && result2.success === false ? 'OK' : 'NG',
+        error: result2 ? result2.error : null
+      });
+      console.log('  結果2:', result2);
+    } catch (error) {
+      testResults.push({
+        case: 'nullファイルID',
+        success: false,
+        error: error.message
+      });
+    }
+    
+    // テストケース3: 配列ファイルID
+    console.log('📋 テストケース3: 配列ファイルID');
+    try {
+      const result3 = createAnalysisSession(['test-file-1', 'test-file-2']);
+      testResults.push({
+        case: '配列ファイルID',
+        success: !!result3,
+        hasSessionId: !!(result3 && result3.sessionId),
+        isMultiFile: !!(result3 && result3.options && result3.options.multiFileMode),
+        responseType: typeof result3,
+        sessionId: result3 ? result3.sessionId : null
+      });
+      console.log('  結果3:', result3);
+    } catch (error) {
+      testResults.push({
+        case: '配列ファイルID',
+        success: false,
+        error: error.message
+      });
+    }
+    
+    console.log('🧪 createAnalysisSession単体テスト完了');
+    
+    const finalResult = {
+      timestamp: new Date().toISOString(),
+      totalTests: testResults.length,
+      results: testResults,
+      summary: `${testResults.filter(r => r.success).length}/${testResults.length}件成功`
+    };
+    
+    console.log('🧪 テスト結果を返却:', JSON.stringify(finalResult, null, 2));
+    return finalResult;
+    
+  } catch (error) {
+    console.error('❌ 単体テスト実行エラー:', error);
+    return {
+      timestamp: new Date().toISOString(),
+      error: error.message,
+      summary: '単体テスト実行中に例外エラー'
+    };
+  }
+}
+
+/**
+ * 解析セッション作成
+ * @param {Array|string} fileIds ファイルIDの配列または単一ファイルID
+ * @param {Object} options オプション設定
+ * @returns {Object} 解析セッション
+ */
+function startFileAnalysisSession(fileIds, options = {}) {
+  console.log('🔬 メイン: ===== 解析セッション作成開始 =====');
+  console.log('🔬 メイン: 受信したファイルID:', fileIds);
+  console.log('🔬 メイン: 受信したオプション:', options);
+  console.log('🔬 メイン: fileIds型:', typeof fileIds);
+  console.log('🔬 メイン: options型:', typeof options);
+  
+  try {
+    // 入力値検証
+    if (!fileIds) {
+      console.error('❌ ファイルIDが未定義です');
+      const errorResult = { success: false, error: 'ファイルIDが指定されていません' };
+      console.log('🔬 メイン: エラーレスポンス返却:', JSON.stringify(errorResult));
+      return errorResult;
+    }
+    
+    // AnalysisManager存在確認
+    console.log('🔬 メイン: AnalysisManager存在確認...');
+    console.log('🔬 メイン: typeof AnalysisManager:', typeof AnalysisManager);
+    
+    if (typeof AnalysisManager === 'undefined') {
+      console.error('❌ AnalysisManagerクラスが見つかりません');
+      const errorResult = { success: false, error: 'AnalysisManagerクラスがGASにコピーされていません' };
+      console.log('🔬 メイン: エラーレスポンス返却:', JSON.stringify(errorResult));
+      return errorResult;
+    }
+    
+    // createAnalysisSessionメソッド確認
+    console.log('🔬 メイン: createAnalysisSessionメソッド確認...');
+    console.log('🔬 メイン: typeof AnalysisManager.createAnalysisSession:', typeof AnalysisManager.createAnalysisSession);
+    
+    if (typeof AnalysisManager.createAnalysisSession !== 'function') {
+      console.error('❌ createAnalysisSessionメソッドが関数ではありません');
+      const errorResult = { success: false, error: 'createAnalysisSessionメソッドが見つかりません' };
+      console.log('🔬 メイン: エラーレスポンス返却:', JSON.stringify(errorResult));
+      return errorResult;
+    }
+    
+    console.log('🔬 メイン: AnalysisManager.createAnalysisSession呼び出し開始');
+    const result = AnalysisManager.createAnalysisSession(fileIds, options);
+    console.log('🔬 メイン: AnalysisManager.createAnalysisSession呼び出し完了');
+    
+    console.log('🔬 メイン: 結果の型確認:', typeof result);
+    console.log('🔬 メイン: 結果がnull:', result === null);
+    console.log('🔬 メイン: 結果がundefined:', result === undefined);
+    
+    // 詳細なresult内容ログ出力
+    console.log('🔬 メイン: ===== result詳細分析開始 =====');
+    try {
+      if (result) {
+        console.log('🔬 メイン: result存在確認: true');
+        console.log('🔬 メイン: resultのキー一覧:', Object.keys(result));
+        console.log('🔬 メイン: sessionId:', result.sessionId);
+        console.log('🔬 メイン: createdAt:', result.createdAt);
+        console.log('🔬 メイン: createdAt型:', typeof result.createdAt);
+        console.log('🔬 メイン: fileIds:', result.fileIds);
+        console.log('🔬 メイン: status:', result.status);
+        console.log('🔬 メイン: options:', result.options);
+        console.log('🔬 メイン: stats:', result.stats);
+        
+        // JSON化テスト
+        console.log('🔬 メイン: JSON.stringify実行テスト...');
+        const jsonTest = JSON.stringify(result);
+        console.log('🔬 メイン: JSON化成功:', jsonTest.substring(0, 100) + '...');
+        
+      } else {
+        console.log('🔬 メイン: result存在確認: false');
+        console.log('🔬 メイン: result値そのもの:', result);
+      }
+    } catch (analysisError) {
+      console.error('🔬 メイン: result分析中エラー:', analysisError);
+      console.error('🔬 メイン: 分析エラー詳細:', analysisError.message);
+    }
+    console.log('🔬 メイン: ===== result詳細分析完了 =====');
+    
+    if (result) {
+      console.log('🔬 メイン: sessionId存在:', !!result.sessionId);
+      console.log('🔬 メイン: fileIds存在:', !!result.fileIds);
+      console.log('🔬 メイン: sessionId値:', result.sessionId);
+      
+      // 安全なログ出力（循環参照対応）
+      try {
+        console.log('🔬 メイン: 結果の構造:', Object.keys(result));
+        console.log('🔬 メイン: 最終レスポンス準備完了');
+      } catch (logError) {
+        console.log('🔬 メイン: ログ出力エラー（循環参照の可能性）:', logError.message);
+      }
+    } else {
+      console.error('❌ メイン: AnalysisManagerからnull/undefinedが返されました');
+      const errorResult = { success: false, error: 'AnalysisManagerが無効な結果を返しました' };
+      console.log('🔬 メイン: エラーレスポンス返却:', JSON.stringify(errorResult));
+      return errorResult;
+    }
+    
+    console.log('🔬 メイン: ===== 正常完了 - 結果を返却 =====');
+    
+    // フロントエンド用にシリアライズ可能な形式に変換
+    const serializedResult = {
+      sessionId: result.sessionId,
+      createdAt: result.createdAt ? result.createdAt.toISOString() : null,
+      fileIds: result.fileIds,
+      status: result.status,
+      options: {
+        multiFileMode: result.options?.multiFileMode || false,
+        autoCleanup: result.options?.autoCleanup || true,
+        maxQuestions: result.options?.maxQuestions || 50
+      },
+      stats: result.stats || {
+        totalQuestions: 0,
+        totalResponseTime: 0,
+        errors: 0
+      }
+    };
+    
+    console.log('🔬 メイン: シリアライズ結果:', JSON.stringify(serializedResult));
+    return serializedResult;
+    
+  } catch (error) {
+    console.error('❌ メイン: ===== 例外エラー発生 =====');
+    console.error('❌ エラー:', error);
+    console.error('❌ エラータイプ:', typeof error);
+    console.error('❌ エラーメッセージ:', error.message);
+    console.error('❌ エラースタック:', error.stack);
+    console.error('❌ エラー名:', error.name);
+    
+    const errorResult = { 
+      success: false, 
+      error: error.message || '解析セッション作成で不明なエラーが発生しました',
+      details: error.stack,
+      errorType: typeof error,
+      errorName: error.name
+    };
+    
+    console.log('🔬 メイン: 例外エラーレスポンス返却:', JSON.stringify(errorResult));
+    console.log('🔬 メイン: ===== 例外エラー処理完了 =====');
+    return errorResult;
+  }
+}
+
+// フロントエンド用の公開関数（フロントエンドから呼び出される）
+function createAnalysisSession(fileIds, options = {}) {
+  console.log('🔗 API: createAnalysisSession呼び出し開始');
+  console.log('🔗 API: startFileAnalysisSessionへリダイレクト');
+  const result = startFileAnalysisSession(fileIds, options);
+  console.log('🔗 API: startFileAnalysisSessionから結果受信:', !!result);
+  return result;
+}
+
+/**
+ * ファイル解析準備
+ * @param {Object} analysisSession 解析セッション
+ * @param {number} fileIndex ファイルインデックス
+ * @returns {Object} 準備結果
+ */
+function prepareFileForAnalysis(analysisSession, fileIndex = null) {
+  try {
+    console.log('📤 メイン: ファイル解析準備開始');
+    console.log('📤 メイン: 受信したセッション:', analysisSession ? analysisSession.sessionId : 'null');
+    console.log('📤 メイン: ファイルインデックス:', fileIndex);
+    
+    // 入力値検証
+    if (!analysisSession) {
+      console.error('❌ 解析セッションが未定義です');
+      return { success: false, error: '解析セッションが指定されていません' };
+    }
+    
+    if (!analysisSession.sessionId) {
+      console.error('❌ セッションIDが無効です');
+      return { success: false, error: 'セッションIDが無効です' };
+    }
+    
+    const result = AnalysisManager.prepareFileForAnalysis(analysisSession, fileIndex);
+    console.log('📤 メイン: ファイル解析準備完了');
+    
+    return result;
+  } catch (error) {
+    console.error('❌ メイン: ファイル解析準備エラー:', error);
+    console.error('❌ エラースタック:', error.stack);
+    
+    return { 
+      success: false, 
+      error: error.message || 'ファイル解析準備で不明なエラーが発生しました',
+      details: error.stack
+    };
+  }
+}
+
+/**
+ * 解析質問処理
+ * @param {Object} analysisSession 解析セッション
+ * @param {string} question 質問内容
+ * @param {number} fileIndex ファイルインデックス
+ * @returns {Object} 質問応答結果
+ */
+function processAnalysisQuestion(analysisSession, question, fileIndex = null) {
+  try {
+    console.log(`❓ メイン: 解析質問処理開始 "${question.substring(0, 30)}..."`);
+    console.log('❓ メイン: セッション:', analysisSession ? analysisSession.sessionId : 'null');
+    console.log('❓ メイン: fileIndex:', fileIndex);
+    console.log('❓ メイン: セッション詳細:', JSON.stringify({
+      sessionId: analysisSession?.sessionId,
+      status: analysisSession?.status,
+      fileIds: analysisSession?.fileIds,
+      chatSessions: analysisSession?.chatSessions?.length || 0,
+      uploadedFiles: analysisSession?.uploadedFiles?.length || 0
+    }));
+    
+    // 入力値検証
+    if (!analysisSession) {
+      console.error('❌ 解析セッションが未定義です');
+      return { success: false, error: '解析セッションが指定されていません' };
+    }
+    
+    if (!question || question.trim() === '') {
+      console.error('❌ 質問が空です');
+      return { success: false, error: '質問内容が指定されていません' };
+    }
+    
+    // AnalysisManager存在確認
+    if (typeof AnalysisManager === 'undefined') {
+      console.error('❌ AnalysisManagerが未定義です');
+      return { success: false, error: 'AnalysisManagerクラスがロードされていません' };
+    }
+    
+    if (typeof AnalysisManager.processQuestion !== 'function') {
+      console.error('❌ AnalysisManager.processQuestionが関数ではありません');
+      return { success: false, error: 'processQuestionメソッドが見つかりません' };
+    }
+    
+    console.log('❓ メイン: AnalysisManager.processQuestion呼び出し前');
+    const result = AnalysisManager.processQuestion(analysisSession, question, fileIndex);
+    console.log('❓ メイン: AnalysisManager.processQuestion呼び出し後');
+    console.log('❓ メイン: 結果の型:', typeof result);
+    console.log('❓ メイン: 結果がnull/undefined:', result === null || result === undefined);
+    
+    if (result === null || result === undefined) {
+      console.error('❌ AnalysisManager.processQuestionがnull/undefinedを返しました');
+      return { success: false, error: 'AnalysisManagerからnullレスポンスを受信' };
+    }
+    
+    // レスポンスサイズ制限対策 - google.script.run通信制限回避
+    if (result.response && result.response.length > 1500) {
+      console.log('⚠️ レスポンスが長すぎるため切り詰め:', result.response.length);
+      result.response = result.response.substring(0, 1500) + '\n\n[回答が長いため省略されました。詳細は履歴から確認してください]';
+      result.truncated = true;
+    }
+    
+    // JSONシリアライゼーション可能性チェック
+    let jsonTestResult;
+    try {
+      jsonTestResult = JSON.stringify(result);
+      console.log('❓ メイン: JSON変換成功、サイズ:', jsonTestResult.length);
+    } catch (jsonError) {
+      console.error('❌ JSON変換エラー:', jsonError);
+      return { 
+        success: false, 
+        error: 'レスポンスのJSON変換に失敗: ' + jsonError.message,
+        originalResult: result.success || false
+      };
+    }
+    
+    // 安全なレスポンスオブジェクト作成
+    const safeResult = {
+      success: result.success,
+      sessionId: result.sessionId,
+      fileIndex: result.fileIndex,
+      fileName: result.fileName,
+      question: result.question,
+      response: result.response,
+      responseTime: result.responseTime,
+      questionNumber: result.questionNumber,
+      timestamp: result.timestamp ? result.timestamp.toISOString() : new Date().toISOString(),
+      truncated: result.truncated || false
+    };
+    
+    console.log('❓ メイン: 安全なレスポンス作成完了、サイズ:', JSON.stringify(safeResult).length);
+    
+    console.log('❓ メイン: 解析質問処理完了 - 正常レスポンス返却');
+    return safeResult;
+  } catch (error) {
+    console.error('❌ メイン: 解析質問処理エラー:', error);
+    console.error('❌ エラースタック:', error.stack);
+    console.error('❌ エラー発生箇所の詳細:', {
+      message: error.message,
+      name: error.name,
+      line: error.lineNumber || 'unknown'
+    });
+    
+    return { 
+      success: false, 
+      error: error.message || '質問処理で不明なエラーが発生しました',
+      details: error.stack
+    };
+  }
+}
+
+/**
+ * 解析セッション履歴取得
+ * @param {Object} analysisSession 解析セッション
+ * @param {Object} options 取得オプション
+ * @returns {Object} セッション履歴
+ */
+function getAnalysisSessionHistory(analysisSession, options = {}) {
+  try {
+    console.log('📋 メイン: 解析セッション履歴取得開始');
+    const result = AnalysisManager.getSessionHistory(analysisSession, options);
+    console.log('📋 メイン: 解析セッション履歴取得完了');
+    return result;
+  } catch (error) {
+    console.error('❌ メイン: 解析セッション履歴取得エラー:', error);
+    return ErrorHandler.handleError(error, 'メイン解析履歴取得', {
+      returnResult: { success: false, error: error.message }
+    });
+  }
+}
+
+/**
+ * 解析セッションクリーンアップ
+ * @param {Object} analysisSession 解析セッション
+ * @param {boolean} deleteFiles File APIからファイルを削除するか
+ */
+function cleanupAnalysisSession(analysisSession, deleteFiles = false) {
+  try {
+    console.log('🧹 メイン: 解析セッションクリーンアップ開始');
+    AnalysisManager.cleanupSession(analysisSession, deleteFiles);
+    console.log('🧹 メイン: 解析セッションクリーンアップ完了');
+  } catch (error) {
+    console.error('❌ メイン: 解析セッションクリーンアップエラー:', error);
+  }
+}
+
+// ===== 設定・管理関数 =====
+
+/**
+ * APIキー設定
+ * @returns {boolean} 設定成功かどうか
+ */
+function setApiKeys() {
+  try {
+    console.log('🔧 メイン: APIキー設定開始');
+    const result = ConfigManager.setApiKeys();
+    console.log('🔧 メイン: APIキー設定完了');
+    return result;
+  } catch (error) {
+    console.error('❌ メイン: APIキー設定エラー:', error);
+    return false;
+  }
+}
+
+/**
+ * ID設定（スプレッドシート、フォルダ）
+ * @returns {boolean} 設定成功かどうか
+ */
+function setupIds() {
+  try {
+    console.log('🔧 メイン: ID設定開始');
+    const result = ConfigManager.setupIds();
+    console.log('🔧 メイン: ID設定完了');
+    return result;
+  } catch (error) {
+    console.error('❌ メイン: ID設定エラー:', error);
+    return false;
+  }
+}
+
+/**
+ * システム設定確認
+ */
+function checkSetup() {
+  try {
+    console.log('🔧 メイン: 設定確認開始');
+    ConfigManager.checkSetup();
+    console.log('🔧 メイン: 設定確認完了');
+  } catch (error) {
+    console.error('❌ メイン: 設定確認エラー:', error);
+  }
+}
+
+/**
+ * 設定取得
+ * @returns {Object} 設定オブジェクト
+ */
+function getConfig() {
+  try {
+    return ConfigManager.getConfig();
+  } catch (error) {
+    console.error('❌ メイン: 設定取得エラー:', error);
+    return {};
+  }
+}
+
+// ===== デバッグ・テスト関数 =====
+
+/**
+ * スプレッドシート構造デバッグ
+ */
+function debugSpreadsheetStructure() {
+  try {
+    console.log('🔧 メイン: スプレッドシート構造デバッグ開始');
+    const config = ConfigManager.getConfig();
+    DatabaseManager.debugSpreadsheetStructure(config.spreadsheetId);
+    console.log('🔧 メイン: スプレッドシート構造デバッグ完了');
+  } catch (error) {
+    console.error('❌ メイン: スプレッドシート構造デバッグエラー:', error);
+  }
+}
+
+/**
+ * スプレッドシート構造修正
+ */
+function fixSpreadsheetStructure() {
+  try {
+    console.log('🔧 メイン: スプレッドシート構造修正開始');
+    const config = ConfigManager.getConfig();
+    DatabaseManager.fixSpreadsheetStructure(config.spreadsheetId);
+    console.log('🔧 メイン: スプレッドシート構造修正完了');
+  } catch (error) {
+    console.error('❌ メイン: スプレッドシート構造修正エラー:', error);
+  }
+}
+
+/**
+ * Gemini API接続テスト
+ */
+function testGemini() {
+  try {
+    console.log('🤖 メイン: Gemini接続テスト開始');
+    const config = ConfigManager.getConfig();
+    
+    if (!config.geminiApiKey) {
+      console.error('❌ Gemini APIキーが設定されていません');
+      throw new Error('Gemini APIキーが設定されていません');
+    }
+    
+    console.log('🔑 APIキー確認: ✅');
+    console.log(`キー形式: ${config.geminiApiKey.substring(0, 10)}...`);
+    
+    const testSummary = DocumentProcessor.generateDocumentSummary(
+      'テスト住宅_平面図.pdf',
+      'リビング 15畳 キッチン 対面式 寝室 8畳 バルコニー 南向き 木造2階建て',
+      config.geminiApiKey
+    );
+    
+    console.log('✅ Gemini接続テスト成功');
+    console.log('テスト要約結果:', testSummary);
+    
+  } catch (error) {
+    console.error('❌ メイン: Gemini接続テストエラー:', error);
+    throw error;
+  }
+  
+  console.log('🤖 メイン: Gemini接続テスト完了');
+}
+
+/**
+ * 段階的システムテスト
+ */
+function runStepByStepTest() {
+  try {
+    console.log('🧪 メイン: ===== 段階的テスト開始 =====');
+    
+    console.log('📋 ステップ1: 設定確認');
+    checkSetup();
+    
+    console.log('\n📋 ステップ2: スプレッドシート構造確認');
+    debugSpreadsheetStructure();
+    
+    console.log('\n📋 ステップ3: 検索機能テスト');
+    const testResults = searchDocuments('');
+    console.log(`検索テスト結果: ${testResults.length}件`);
+    
+    console.log('\n📋 ステップ4: Gemini接続テスト');
+    testGemini();
+    
+    console.log('\n📋 ステップ5: データベース健全性チェック');
+    const config = ConfigManager.getConfig();
+    const healthCheck = DatabaseManager.performHealthCheck(config.spreadsheetId);
+    console.log('健全性チェック結果:', healthCheck);
+    
+    console.log('\n✅ 全ステップ正常完了');
+    
+  } catch (error) {
+    console.error('❌ テスト中にエラーが発生:', error);
+    console.error('詳細:', error.message);
+    console.error('スタック:', error.stack);
+  }
+  
+  console.log('🧪 メイン: ===== 段階的テスト完了 =====');
+}
+
+/**
+ * 簡単な通信テスト
+ * @returns {Object} テスト結果
+ */
+function testConnection() {
+  try {
+    console.log('📡 メイン: 通信テスト開始');
+    const result = {
+      status: 'success',
+      message: 'GASとの通信は正常です',
+      timestamp: new Date().toLocaleString(),
+      version: 'リファクタリング版 v2.0'
+    };
+    console.log('📡 メイン: 通信テスト完了');
+    return result;
+  } catch (error) {
+    console.error('❌ メイン: 通信テストエラー:', error);
+    return {
+      status: 'error',
+      message: error.message,
+      timestamp: new Date().toLocaleString()
+    };
+  }
+}
+
+/**
+ * 簡単な検索テスト
+ * @returns {Array} 検索結果
+ */
+function testSimpleSearch() {
+  try {
+    console.log('🔍 メイン: 簡単な検索テスト開始');
+    const result = searchDocuments('全文');
+    console.log('🔍 メイン: 検索テスト結果:', result);
+    console.log('結果の型:', typeof result);
+    console.log('結果が配列?:', Array.isArray(result));
+    console.log('結果の長さ:', result ? result.length : 'N/A');
+    return result;
+  } catch (error) {
+    console.error('❌ メイン: 簡単な検索テストエラー:', error);
+    return [];
+  }
+}
+
+/**
+ * データ型チェック専用関数
+ * @param {string} query 検索クエリ
+ * @returns {Object} バリデーション結果
+ */
+function validateSearchResult(query) {
+  try {
+    console.log('🔍 メイン: データ型チェック開始:', query);
+    
+    const result = searchDocuments(query);
+    
+    console.log('📊 バックエンド結果の詳細分析:');
+    console.log('- 型:', typeof result);
+    console.log('- 配列?:', Array.isArray(result));
+    console.log('- 長さ:', result ? result.length : 'N/A');
+    console.log('- 内容:', JSON.stringify(result, null, 2));
+    
+    if (Array.isArray(result)) {
+      result.forEach((item, index) => {
+        console.log(`結果${index}:`, {
+          fileName: typeof item.fileName,
+          extractedText: typeof item.extractedText,
+          aiSummary: typeof item.aiSummary,
+          fileId: typeof item.fileId,
+          updateDate: typeof item.updateDate,
+          fileType: typeof item.fileType,
+          viewUrl: typeof item.viewUrl
+        });
+      });
+    }
+    
+    return {
+      success: true,
+      result: result,
+      analysis: {
+        type: typeof result,
+        isArray: Array.isArray(result),
+        length: result ? result.length : 0
+      }
+    };
+    
+  } catch (error) {
+    console.error('❌ メイン: データ型チェックエラー:', error);
+    return {
+      success: false,
+      error: error.message,
+      analysis: null
+    };
+  }
+}
+
+/**
+ * クイックテスト（簡易動作確認）
+ */
+function quickTest() {
+  try {
+    console.log('⚡ メイン: ===== クイックテスト =====');
+    checkSetup();
+    
+    const config = ConfigManager.getConfig();
+    if (config.folderId) {
+      try {
+        const folder = DriveApp.getFolderById(config.folderId);
+        console.log('フォルダ名:', folder.getName());
+        
+        const files = folder.getFiles();
+        let count = 0;
+        while (files.hasNext() && count < 3) {
+          console.log('ファイル例:', files.next().getName());
+          count++;
+        }
+      } catch (error) {
+        console.error('フォルダアクセスエラー:', error);
+      }
+    }
+    
+    console.log('⚡ メイン: ===== クイックテスト完了 =====');
+  } catch (error) {
+    console.error('❌ メイン: クイックテストエラー:', error);
+  }
+}
+
+// ===== 後方互換性関数 =====
+
+/**
+ * 後方互換性: 旧関数名をサポート
+ */
+function analyzeDrawings() {
+  return analyzeDocuments();
+}
+
+function searchDrawings(query) {
+  return searchDocuments(query);
+}
+
+function generateDocumentSummary(fileName, extractedText, geminiApiKey) {
+  return DocumentProcessor.generateDocumentSummary(fileName, extractedText, geminiApiKey);
+}
+
+// ===== システム情報関数 =====
+
+/**
+ * システム情報を取得
+ * @returns {Object} システム情報
+ */
+function getSystemInfo() {
+  try {
+    const config = ConfigManager.getConfig();
+    const limits = ConfigManager.getApiLimits();
+    const schema = ConfigManager.getSpreadsheetSchema();
+    
+    return {
+      version: 'リファクタリング版 v2.0',
+      timestamp: new Date().toLocaleString(),
+      config: {
+        hasVisionApi: !!config.visionApiKey,
+        hasGeminiApi: !!config.geminiApiKey,
+        hasSpreadsheet: !!config.spreadsheetId,
+        hasFolder: !!config.folderId
+      },
+      limits: limits,
+      schema: schema,
+      modules: [
+        'ConfigManager',
+        'Utils',
+        'ErrorHandler',
+        'SearchEngine',
+        'DocumentProcessor',
+        'DatabaseManager'
+      ]
+    };
+  } catch (error) {
+    console.error('❌ メイン: システム情報取得エラー:', error);
+    return {
+      version: 'リファクタリング版 v2.0',
+      error: error.message,
+      timestamp: new Date().toLocaleString()
+    };
+  }
+}
