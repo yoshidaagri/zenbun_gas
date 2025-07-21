@@ -49,6 +49,13 @@ function include(filename) {
 function analyzeDocuments() {
   try {
     console.log('📊 メイン: ドキュメント解析開始');
+    
+    // 利用統計ログ記録
+    DatabaseManager.logUsageStats('document_analysis', {
+      action: 'analyze_documents',
+      timestamp: new Date().toISOString()
+    });
+    
     const result = DocumentProcessor.analyzeDocuments();
     console.log('📊 メイン: ドキュメント解析完了');
     return result;
@@ -68,6 +75,14 @@ function analyzeDocuments() {
 function searchDocuments(query) {
   try {
     console.log(`🔍 メイン: 検索実行 "${query}"`);
+    
+    // 利用統計ログ記録
+    DatabaseManager.logUsageStats('search', {
+      action: 'search_documents',
+      query: query,
+      timestamp: new Date().toISOString()
+    });
+    
     const results = SearchEngine.searchDocuments(query);
     console.log(`🔍 メイン: 検索完了 ${results.length}件`);
     return results;
@@ -585,6 +600,14 @@ function processAnalysisQuestion(analysisSession, question, fileIndex = null) {
       chatSessions: analysisSession?.chatSessions?.length || 0,
       uploadedFiles: analysisSession?.uploadedFiles?.length || 0
     }));
+    
+    // 利用統計ログ記録
+    DatabaseManager.logUsageStats('ai_question', {
+      action: 'process_analysis_question',
+      sessionId: analysisSession?.sessionId,
+      question: question.substring(0, 50),
+      timestamp: new Date().toISOString()
+    });
     
     // 入力値検証
     if (!analysisSession) {
@@ -1691,6 +1714,173 @@ function getSystemInfo() {
       version: 'リファクタリング版 v2.0',
       error: error.message,
       timestamp: new Date().toLocaleString()
+    };
+  }
+}
+
+// ===== 利用統計機能 =====
+
+/**
+ * 利用統計手動テスト（デバッグ用）
+ * @returns {Object} テスト結果
+ */
+function testUsageStatsSystem() {
+  try {
+    console.log('📊 ===== 利用統計システムテスト開始 =====');
+    
+    const results = {
+      timestamp: new Date().toISOString(),
+      tests: {},
+      errors: []
+    };
+    
+    // 1. 設定確認
+    console.log('📋 ステップ1: 設定確認');
+    const config = ConfigManager.getConfig();
+    results.tests.configCheck = {
+      hasSpreadsheetId: !!config.spreadsheetId,
+      spreadsheetId: config.spreadsheetId ? config.spreadsheetId.substring(0, 10) + '...' : 'なし'
+    };
+    
+    if (!config.spreadsheetId) {
+      results.errors.push('スプレッドシートIDが未設定');
+      return results;
+    }
+    
+    // 2. 手動ログ記録テスト
+    console.log('📋 ステップ2: 手動ログ記録テスト');
+    try {
+      DatabaseManager.logUsageStats('search', {
+        action: 'test_manual_log',
+        query: 'テスト検索',
+        timestamp: new Date().toISOString()
+      });
+      results.tests.manualLogTest = { success: true };
+      console.log('✅ 手動ログ記録成功');
+    } catch (logError) {
+      results.tests.manualLogTest = { success: false, error: logError.message };
+      results.errors.push('手動ログ記録エラー: ' + logError.message);
+      console.error('❌ 手動ログ記録エラー:', logError);
+    }
+    
+    // 3. 統計取得テスト
+    console.log('📋 ステップ3: 統計取得テスト');
+    try {
+      const todayStats = DatabaseManager.getUsageStats('today');
+      results.tests.statsRetrieval = {
+        success: todayStats.success,
+        hasData: todayStats.data && todayStats.data.length > 0,
+        summary: todayStats.summary,
+        error: todayStats.error
+      };
+      console.log('✅ 統計取得テスト結果:', todayStats);
+    } catch (statsError) {
+      results.tests.statsRetrieval = { success: false, error: statsError.message };
+      results.errors.push('統計取得エラー: ' + statsError.message);
+      console.error('❌ 統計取得エラー:', statsError);
+    }
+    
+    // 4. スプレッドシート直接確認
+    console.log('📋 ステップ4: スプレッドシート直接確認');
+    try {
+      const spreadsheet = SpreadsheetApp.openById(config.spreadsheetId);
+      const sheets = spreadsheet.getSheets();
+      const sheetNames = sheets.map(sheet => sheet.getName());
+      
+      results.tests.spreadsheetCheck = {
+        totalSheets: sheets.length,
+        sheetNames: sheetNames,
+        hasUsageStatsSheet: sheetNames.includes('利用統計')
+      };
+      
+      // 利用統計シートの詳細確認
+      if (sheetNames.includes('利用統計')) {
+        const usageSheet = spreadsheet.getSheetByName('利用統計');
+        const lastRow = usageSheet.getLastRow();
+        const lastCol = usageSheet.getLastColumn();
+        
+        results.tests.usageSheetDetails = {
+          lastRow: lastRow,
+          lastCol: lastCol,
+          hasData: lastRow > 1
+        };
+        
+        if (lastRow > 0) {
+          const headers = usageSheet.getRange(1, 1, 1, lastCol).getValues()[0];
+          results.tests.usageSheetDetails.headers = headers;
+        }
+        
+        console.log('✅ 利用統計シート確認完了');
+      }
+      
+    } catch (sheetError) {
+      results.tests.spreadsheetCheck = { success: false, error: sheetError.message };
+      results.errors.push('スプレッドシート確認エラー: ' + sheetError.message);
+      console.error('❌ スプレッドシート確認エラー:', sheetError);
+    }
+    
+    // 5. 結果サマリー
+    const totalTests = Object.keys(results.tests).length;
+    const successTests = Object.values(results.tests).filter(test => test.success !== false).length;
+    
+    results.summary = `${successTests}/${totalTests}件成功`;
+    if (results.errors.length === 0) {
+      results.summary += ' - 全テスト正常';
+      console.log('✅ 利用統計システム正常動作');
+    } else {
+      results.summary += ` - ${results.errors.length}件エラー`;
+      console.log('❌ 利用統計システムにエラーあり');
+    }
+    
+    console.log('📊 ===== 利用統計システムテスト完了 =====');
+    return results;
+    
+  } catch (error) {
+    console.error('❌ 利用統計システムテストエラー:', error);
+    return {
+      timestamp: new Date().toISOString(),
+      error: error.message,
+      summary: 'テスト実行中に例外エラー'
+    };
+  }
+}
+
+/**
+ * 今日の利用統計を取得（UI呼び出し用）
+ * @returns {Object} 今日の統計
+ */
+function getTodayUsageStats() {
+  try {
+    console.log('📊 今日の利用統計取得開始');
+    const result = DatabaseManager.getUsageStats('today');
+    console.log('📊 今日の利用統計取得完了');
+    return result;
+  } catch (error) {
+    console.error('❌ 今日の利用統計取得エラー:', error);
+    return {
+      success: false,
+      error: error.message,
+      period: 'today'
+    };
+  }
+}
+
+/**
+ * 全期間の利用統計を取得（UI呼び出し用）
+ * @returns {Object} 全期間の統計
+ */
+function getAllUsageStats() {
+  try {
+    console.log('📊 全期間の利用統計取得開始');
+    const result = DatabaseManager.getUsageStats('all');
+    console.log('📊 全期間の利用統計取得完了');
+    return result;
+  } catch (error) {
+    console.error('❌ 全期間の利用統計取得エラー:', error);
+    return {
+      success: false,
+      error: error.message,
+      period: 'all'
     };
   }
 }

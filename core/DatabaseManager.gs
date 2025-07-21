@@ -442,6 +442,236 @@ class DatabaseManager {
       return ErrorHandler.handleDatabaseError(error, 'データベース健全性チェック');
     }
   }
+
+  /**
+   * 利用統計をログに記録
+   * @param {string} action アクション種別 ('document_analysis', 'search', 'ai_question')
+   * @param {Object} details 詳細情報
+   */
+  static logUsageStats(action, details = {}) {
+    try {
+      console.log(`📊 利用統計ログ: ${action}`);
+      
+      const config = ConfigManager.getConfig();
+      if (!config.spreadsheetId) {
+        console.warn('⚠️ スプレッドシートIDが未設定のためログを記録できません');
+        return;
+      }
+      
+      const spreadsheet = SpreadsheetApp.openById(config.spreadsheetId);
+      
+      // 2枚目のシートを取得または作成
+      let logSheet;
+      try {
+        logSheet = spreadsheet.getSheetByName('利用統計');
+        if (!logSheet) {
+          throw new Error('利用統計シートが見つかりません');
+        }
+      } catch (error) {
+        console.log('📊 利用統計シートを作成します...');
+        console.log('📊 作成理由:', error.message);
+        
+        try {
+          logSheet = spreadsheet.insertSheet('利用統計');
+          
+          // ヘッダー行を設定
+          const headers = ['日付', '新規ドキュメント解析数', '検索回数', 'AI質問数'];
+          logSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+          
+          // ヘッダー行の書式設定
+          const headerRange = logSheet.getRange(1, 1, 1, headers.length);
+          headerRange.setFontWeight('bold');
+          headerRange.setBackground('#f0f0f0');
+          
+          console.log('✅ 利用統計シート作成完了');
+        } catch (createError) {
+          console.error('❌ 利用統計シート作成エラー:', createError);
+          throw createError;
+        }
+      }
+      
+      // シート存在確認
+      if (!logSheet) {
+        console.error('❌ 利用統計シートの取得に失敗しました');
+        return;
+      }
+      
+      // 今日の日付（日本時間）
+      const today = new Date();
+      const jstOffset = 9 * 60; // JST is UTC+9
+      const utc = today.getTime() + (today.getTimezoneOffset() * 60000);
+      const jstDate = new Date(utc + (jstOffset * 60000));
+      const dateString = Utilities.formatDate(jstDate, 'Asia/Tokyo', 'yyyy-MM-dd');
+      
+      console.log(`📅 記録日付: ${dateString}`);
+      
+      // 今日の行を検索
+      let data;
+      try {
+        const dataRange = logSheet.getDataRange();
+        if (!dataRange) {
+          console.log('📊 データ範囲が空のため、新規データ作成');
+          data = [['日付', '新規ドキュメント解析数', '検索回数', 'AI質問数']]; // ヘッダーのみ
+        } else {
+          data = dataRange.getValues();
+        }
+      } catch (dataError) {
+        console.error('❌ データ範囲取得エラー:', dataError);
+        console.log('📊 データ範囲の手動設定を試行...');
+        data = [['日付', '新規ドキュメント解析数', '検索回数', 'AI質問数']]; // ヘッダーのみ
+      }
+      
+      let todayRowIndex = -1;
+      
+      for (let i = 1; i < data.length; i++) { // 1行目はヘッダーなので除外
+        const rowDate = data[i][0];
+        let rowDateString;
+        
+        if (rowDate instanceof Date) {
+          rowDateString = Utilities.formatDate(rowDate, 'Asia/Tokyo', 'yyyy-MM-dd');
+        } else {
+          rowDateString = rowDate.toString();
+        }
+        
+        if (rowDateString === dateString) {
+          todayRowIndex = i + 1; // スプレッドシートは1ベースなので+1
+          break;
+        }
+      }
+      
+      // 今日の行が存在しない場合は新規作成
+      if (todayRowIndex === -1) {
+        console.log('📝 新しい日付の行を作成');
+        todayRowIndex = data.length + 1;
+        logSheet.getRange(todayRowIndex, 1).setValue(jstDate);
+        logSheet.getRange(todayRowIndex, 2).setValue(0); // 新規ドキュメント解析数
+        logSheet.getRange(todayRowIndex, 3).setValue(0); // 検索回数
+        logSheet.getRange(todayRowIndex, 4).setValue(0); // AI質問数
+      }
+      
+      // カウントを増加
+      let columnIndex;
+      switch (action) {
+        case 'document_analysis':
+          columnIndex = 2;
+          console.log('📈 新規ドキュメント解析数をカウント');
+          break;
+        case 'search':
+          columnIndex = 3;
+          console.log('🔍 検索回数をカウント');
+          break;
+        case 'ai_question':
+          columnIndex = 4;
+          console.log('🤖 AI質問数をカウント');
+          break;
+        default:
+          console.warn('⚠️ 不明なアクション:', action);
+          return;
+      }
+      
+      const currentValue = logSheet.getRange(todayRowIndex, columnIndex).getValue() || 0;
+      const newValue = currentValue + 1;
+      logSheet.getRange(todayRowIndex, columnIndex).setValue(newValue);
+      
+      console.log(`✅ 統計更新完了: ${action} = ${newValue}`);
+      
+    } catch (error) {
+      console.error('❌ 利用統計ログエラー:', error);
+      // ログエラーでメイン処理を止めないように、エラーは出力のみ
+    }
+  }
+
+  /**
+   * 利用統計を取得
+   * @param {string} period 期間 ('today', 'week', 'month', 'all')
+   * @returns {Object} 統計データ
+   */
+  static getUsageStats(period = 'today') {
+    try {
+      console.log(`📊 利用統計取得: ${period}`);
+      
+      const config = ConfigManager.getConfig();
+      if (!config.spreadsheetId) {
+        return { success: false, error: 'スプレッドシートIDが未設定' };
+      }
+      
+      const spreadsheet = SpreadsheetApp.openById(config.spreadsheetId);
+      let logSheet;
+      
+      try {
+        logSheet = spreadsheet.getSheetByName('利用統計');
+        if (!logSheet) {
+          return { success: false, error: '利用統計シートが見つかりません' };
+        }
+      } catch (error) {
+        return { success: false, error: '利用統計シートが見つかりません' };
+      }
+      
+      let data;
+      try {
+        const dataRange = logSheet.getDataRange();
+        if (!dataRange) {
+          return { success: true, stats: [], message: 'データがありません' };
+        }
+        data = dataRange.getValues();
+        if (!data || data.length <= 1) {
+          return { success: true, stats: [], message: 'データがありません' };
+        }
+      } catch (dataError) {
+        console.error('❌ データ範囲取得エラー (getUsageStats):', dataError);
+        return { success: false, error: 'データ取得エラー: ' + dataError.message };
+      }
+      
+      // ヘッダーを除いたデータ
+      const statsData = data.slice(1).map(row => ({
+        date: row[0],
+        documentAnalysis: row[1] || 0,
+        searches: row[2] || 0,
+        aiQuestions: row[3] || 0
+      }));
+      
+      // 期間でフィルタリング
+      const today = new Date();
+      const jstOffset = 9 * 60;
+      const utc = today.getTime() + (today.getTimezoneOffset() * 60000);
+      const jstToday = new Date(utc + (jstOffset * 60000));
+      
+      let filteredData = statsData;
+      
+      if (period === 'today') {
+        const todayString = Utilities.formatDate(jstToday, 'Asia/Tokyo', 'yyyy-MM-dd');
+        filteredData = statsData.filter(row => {
+          const rowDateString = Utilities.formatDate(row.date, 'Asia/Tokyo', 'yyyy-MM-dd');
+          return rowDateString === todayString;
+        });
+      } else if (period === 'week') {
+        const weekAgo = new Date(jstToday.getTime() - (7 * 24 * 60 * 60 * 1000));
+        filteredData = statsData.filter(row => row.date >= weekAgo);
+      } else if (period === 'month') {
+        const monthAgo = new Date(jstToday.getTime() - (30 * 24 * 60 * 60 * 1000));
+        filteredData = statsData.filter(row => row.date >= monthAgo);
+      }
+      
+      // 合計値を計算
+      const summary = filteredData.reduce((sum, row) => ({
+        totalDocumentAnalysis: sum.totalDocumentAnalysis + row.documentAnalysis,
+        totalSearches: sum.totalSearches + row.searches,
+        totalAiQuestions: sum.totalAiQuestions + row.aiQuestions
+      }), { totalDocumentAnalysis: 0, totalSearches: 0, totalAiQuestions: 0 });
+      
+      return {
+        success: true,
+        period: period,
+        data: filteredData,
+        summary: summary,
+        totalDays: filteredData.length
+      };
+      
+    } catch (error) {
+      console.error('❌ 利用統計取得エラー:', error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 // 後方互換性のための関数エクスポート
