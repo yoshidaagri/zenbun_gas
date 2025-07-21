@@ -43,6 +43,42 @@ function include(filename) {
 // ===== 公開API関数（フロントエンドから呼び出し） =====
 
 /**
+ * 検索統計テスト関数
+ * @param {string} testQuery テスト用検索クエリ
+ * @returns {Object} テスト結果
+ */
+function testSearchWithStats(testQuery = 'テスト検索') {
+  try {
+    console.log('🧪 検索統計テスト開始');
+    
+    // 手動で統計記録テスト
+    console.log('📊 手動統計記録テスト');
+    DatabaseManager.logUsageStats('search', {
+      action: 'manual_test_search',
+      query: testQuery,
+      timestamp: new Date().toISOString()
+    });
+    
+    // 実際の検索実行
+    console.log('🔍 実際の検索実行');
+    const results = searchDocuments(testQuery);
+    
+    return {
+      success: true,
+      message: '検索統計テスト完了',
+      searchResults: results.length,
+      testQuery: testQuery
+    };
+  } catch (error) {
+    console.error('❌ 検索統計テストエラー:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
  * ドキュメント解析実行
  * @returns {Object} 解析結果
  */
@@ -74,14 +110,20 @@ function analyzeDocuments() {
  */
 function searchDocuments(query) {
   try {
-    console.log(`🔍 メイン: 検索実行 "${query}"`);
+    console.log(`🔍 メイン: 検索実行開始 "${query}"`);
     
-    // 利用統計ログ記録
-    DatabaseManager.logUsageStats('search', {
-      action: 'search_documents',
-      query: query,
-      timestamp: new Date().toISOString()
-    });
+    // 統計記録をtry-catchで囲む
+    try {
+      console.log('📊 統計記録開始');
+      DatabaseManager.logUsageStats('search', {
+        action: 'search_documents',
+        query: query,
+        timestamp: new Date().toISOString()
+      });
+      console.log('📊 統計記録完了');
+    } catch (statsError) {
+      console.error('❌ 統計記録エラー（検索は続行）:', statsError);
+    }
     
     const results = SearchEngine.searchDocuments(query);
     console.log(`🔍 メイン: 検索完了 ${results.length}件`);

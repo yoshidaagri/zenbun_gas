@@ -17,6 +17,19 @@ class SearchEngine {
     console.log(`検索キーワード: "${query}"`);
     console.log(`開始時刻: ${startTime.toLocaleString()}`);
     
+    // 統計記録（SearchEngine内で直接実行）
+    try {
+      console.log('📊 SearchEngine: 統計記録開始');
+      DatabaseManager.logUsageStats('search', {
+        action: 'search_via_searchengine',
+        query: query,
+        timestamp: new Date().toISOString()
+      });
+      console.log('📊 SearchEngine: 統計記録完了');
+    } catch (statsError) {
+      console.error('❌ SearchEngine: 統計記録エラー（検索は続行）:', statsError);
+    }
+    
     try {
       // 設定確認
       const config = ConfigManager.getConfig();

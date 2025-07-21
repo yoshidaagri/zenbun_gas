@@ -956,6 +956,7 @@
       <button class="mgmt-btn" onclick="showAllDocuments()">📊 スプレッドシート表示</button>
       <button class="mgmt-btn" onclick="testGeminiConnection()">🤖 Gemini接続テスト</button>
       <button class="mgmt-btn" onclick="runDebugTests()">🔧 詳細デバッグ</button>
+      <button class="mgmt-btn" onclick="testSearchStats()">📊 検索統計テスト</button>
       <button class="mgmt-btn" onclick="testAnalysisConnection()">🧪 AI分析接続テスト</button>
       <button class="mgmt-btn" onclick="testAnalysisManagerDetails()">🔍 AnalysisManager詳細テスト</button>
       <button class="mgmt-btn" onclick="testCreateAnalysisSessionUnit()">⚙️ セッション作成単体テスト</button>
@@ -1336,6 +1337,41 @@
         hideLoadingStatus();
         console.error('❌ 詳細テスト実行例外:', error);
         alert(`❌ 詳細テスト実行例外\n\n${error.message}`);
+      }
+    }
+
+    // 検索統計テスト関数
+    function testSearchStats() {
+      try {
+        console.log('📊 検索統計テスト開始');
+        showLoadingStatus('📊 検索統計テスト中...');
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            hideLoadingStatus();
+            console.log('📊 検索統計テスト結果:', result);
+            
+            if (result && result.success) {
+              alert(`✅ 検索統計テスト成功！\n\n` +
+                   `テストクエリ: "${result.testQuery}"\n` +
+                   `検索結果数: ${result.searchResults}件\n` +
+                   `メッセージ: ${result.message}\n\n` +
+                   `GASログを確認して統計記録を確認してください。`);
+            } else {
+              alert(`❌ 検索統計テスト失敗\n\nエラー: ${result ? result.error : '不明なエラー'}`);
+            }
+          })
+          .withFailureHandler(function(error) {
+            hideLoadingStatus();
+            console.error('❌ 検索統計テストエラー:', error);
+            alert(`❌ 検索統計テストエラー\n\n${error.message || error}`);
+          })
+          .testSearchWithStats('統計テスト検索');
+          
+      } catch (error) {
+        hideLoadingStatus();
+        console.error('❌ 検索統計テスト実行例外:', error);
+        alert(`❌ 検索統計テスト実行例外\n\n${error.message}`);
       }
     }
 
