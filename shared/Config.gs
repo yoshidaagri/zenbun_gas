@@ -1,6 +1,44 @@
 // ===== 設定管理モジュール =====
 
 /**
+ * 業種別テンプレート定義
+ */
+const INDUSTRY_TEMPLATES = {
+  'design_office': {
+    name: 'デザイン事務所',
+    systemTitle: '🏗️ デザイン事務所ドキュメント検索システム',
+    searchExamples: ['設計', '平面図', 'カフェ', '住宅', 'テラス', '2階'],
+    placeholder: '例: 設計, 平面図, カフェ設計...',
+    colors: {
+      primary: '#8B9A5B',      // カーキ色
+      light: '#A8B373',
+      pale: '#C5D197',
+      cream: '#F5F7F0',
+      dark: '#6B7A47',
+      accent: '#9CAD6B'
+    },
+    aiPrompt: 'あなたはデザイン事務所の専門AIです。建築図面、設計書類を専門に解析します。',
+    documentTypes: ['図面', 'CAD', '設計書', '仕様書', '見積書']
+  },
+  'accounting_office': {
+    name: '会計事務所',
+    systemTitle: '📊 会計事務所ドキュメント検索システム',
+    searchExamples: ['決算書', '仕訳帳', '請求書', '領収書', '税務調書', '給与'],
+    placeholder: '例: 決算書, 仕訳帳, 税務調書...',
+    colors: {
+      primary: '#2E7D32',      // 会計グリーン
+      light: '#4CAF50',
+      pale: '#A5D6A7',
+      cream: '#E8F5E8',
+      dark: '#1B5E20',
+      accent: '#66BB6A'
+    },
+    aiPrompt: 'あなたは会計事務所の専門AIです。決算書、帳簿、税務書類を専門に解析します。400文字以内で簡潔に、会計・税務の専門用語を使って回答してください。',
+    documentTypes: ['決算書', '帳簿', '請求書', '領収書', '税務書類', '給与明細']
+  }
+};
+
+/**
  * 設定管理クラス
  * APIキー、スプレッドシートID、フォルダIDなどの設定を一元管理
  */
@@ -253,6 +291,103 @@ class ConfigManager {
   static validateConfig() {
     const config = this.getConfig();
     return !!(config.visionApiKey && config.geminiApiKey && config.spreadsheetId && config.folderId);
+  }
+
+  // ===== 業種別設定管理 =====
+
+  /**
+   * 現在の業種設定を取得
+   * @returns {Object} 業種設定オブジェクト
+   */
+  static getIndustryConfig() {
+    try {
+      // スクリプトプロパティから業種タイプ取得（デフォルト: design_office）
+      const industryType = PropertiesService.getScriptProperties().getProperty('INDUSTRY_TYPE') || 'design_office';
+      console.log(`📊 現在の業種設定: ${industryType}`);
+      
+      // カスタム設定があるかチェック
+      const customConfigJson = PropertiesService.getScriptProperties().getProperty('CUSTOM_INDUSTRY_CONFIG');
+      if (customConfigJson) {
+        try {
+          const customConfig = JSON.parse(customConfigJson);
+          const baseConfig = INDUSTRY_TEMPLATES[industryType] || INDUSTRY_TEMPLATES['design_office'];
+          console.log('🎨 カスタム設定を適用');
+          return { ...baseConfig, ...customConfig };
+        } catch (parseError) {
+          console.error('❌ カスタム設定のJSONパースエラー:', parseError);
+        }
+      }
+      
+      // 標準テンプレート返却
+      return INDUSTRY_TEMPLATES[industryType] || INDUSTRY_TEMPLATES['design_office'];
+    } catch (error) {
+      console.error('❌ 業種設定取得エラー:', error);
+      return INDUSTRY_TEMPLATES['design_office']; // フォールバック
+    }
+  }
+
+  /**
+   * 業種を切り替え
+   * @param {string} industryType 業種タイプ（design_office, accounting_office）
+   */
+  static setIndustry(industryType) {
+    if (!INDUSTRY_TEMPLATES[industryType]) {
+      throw new Error(`❌ 未対応業種: ${industryType}`);
+    }
+    
+    PropertiesService.getScriptProperties().setProperty('INDUSTRY_TYPE', industryType);
+    console.log(`✅ 業種切り替え完了: ${INDUSTRY_TEMPLATES[industryType].name}`);
+    
+    // 設定確認
+    const config = this.getIndustryConfig();
+    console.log(`📋 新しい設定:`);
+    console.log(`   タイトル: ${config.systemTitle}`);
+    console.log(`   検索例: [${config.searchExamples.join(', ')}]`);
+    console.log(`   カラー: ${config.colors.primary}`);
+    
+    return config;
+  }
+
+  /**
+   * 利用可能業種一覧取得
+   * @returns {Array} 業種一覧
+   */
+  static getAvailableIndustries() {
+    return Object.keys(INDUSTRY_TEMPLATES).map(key => ({
+      key,
+      name: INDUSTRY_TEMPLATES[key].name,
+      title: INDUSTRY_TEMPLATES[key].systemTitle
+    }));
+  }
+
+  /**
+   * 検索例取得
+   * @returns {Array} 検索例配列
+   */
+  static getSearchExamples() {
+    return this.getIndustryConfig().searchExamples;
+  }
+
+  /**
+   * UI設定取得
+   * @returns {Object} UI設定
+   */
+  static getUISettings() {
+    const config = this.getIndustryConfig();
+    return {
+      title: config.systemTitle,
+      placeholder: config.placeholder,
+      colors: config.colors,
+      searchExamples: config.searchExamples
+    };
+  }
+
+  /**
+   * AIプロンプト設定取得  
+   * @returns {string} AIプロンプト
+   */
+  static getAIPrompt() {
+    return this.getIndustryConfig().aiPrompt;
   }
 
   /**

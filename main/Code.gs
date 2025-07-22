@@ -42,6 +42,70 @@ function include(filename) {
 
 // ===== 公開API関数（フロントエンドから呼び出し） =====
 
+// ===== 業種別設定API =====
+
+/**
+ * UI設定を取得（フロントエンドから呼び出し）
+ * @returns {Object} UI設定
+ */
+function getIndustryUISettings() {
+  try {
+    console.log('🎨 UI設定取得開始');
+    const settings = ConfigManager.getUISettings();
+    console.log('🎨 UI設定取得完了:', settings);
+    return settings;
+  } catch (error) {
+    console.error('❌ UI設定取得エラー:', error);
+    return {
+      title: '🏗️ デザイン事務所ドキュメント検索システム',
+      placeholder: '例: 設計, 平面図, カフェ設計...',
+      searchExamples: ['設計', '平面図', 'カフェ', '住宅', 'テラス', '2階'],
+      colors: {
+        primary: '#8B9A5B',
+        light: '#A8B373',
+        pale: '#C5D197',
+        cream: '#F5F7F0'
+      }
+    };
+  }
+}
+
+/**
+ * 業種切り替え（フロントエンドから呼び出し）
+ * @param {string} industryType 業種タイプ
+ * @returns {Object} 結果
+ */
+function setIndustryType(industryType) {
+  try {
+    console.log(`🏢 業種切り替え開始: ${industryType}`);
+    const config = ConfigManager.setIndustry(industryType);
+    return { 
+      success: true, 
+      message: `業種を「${config.name}」に変更しました`,
+      config: config
+    };
+  } catch (error) {
+    console.error('❌ 業種切り替えエラー:', error);
+    return { 
+      success: false, 
+      error: error.message 
+    };
+  }
+}
+
+/**
+ * 利用可能業種一覧取得（フロントエンドから呼び出し）
+ * @returns {Array} 業種一覧
+ */
+function getAvailableIndustries() {
+  try {
+    return ConfigManager.getAvailableIndustries();
+  } catch (error) {
+    console.error('❌ 業種一覧取得エラー:', error);
+    return [];
+  }
+}
+
 /**
  * 検索統計テスト関数
  * @param {string} testQuery テスト用検索クエリ
