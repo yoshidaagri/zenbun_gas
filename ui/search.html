@@ -957,6 +957,8 @@
       <button class="mgmt-btn" onclick="testGeminiConnection()">🤖 Gemini接続テスト</button>
       <button class="mgmt-btn" onclick="runDebugTests()">🔧 詳細デバッグ</button>
       <button class="mgmt-btn" onclick="testSearchStats()">📊 検索統計テスト</button>
+      <button class="mgmt-btn" onclick="testIndustryConfig()">🏢 業種設定テスト</button>
+      <button class="mgmt-btn" onclick="showIndustrySelector()">🔄 業種切り替え</button>
       <button class="mgmt-btn" onclick="testAnalysisConnection()">🧪 AI分析接続テスト</button>
       <button class="mgmt-btn" onclick="testAnalysisManagerDetails()">🔍 AnalysisManager詳細テスト</button>
       <button class="mgmt-btn" onclick="testCreateAnalysisSessionUnit()">⚙️ セッション作成単体テスト</button>
@@ -987,12 +989,140 @@
 
     // ページ読み込み時の初期化
     window.addEventListener('load', function() {
-      console.log('🚀 デザイン事務所検索システム v2.0 起動');
+      console.log('🚀 システム起動開始');
+      loadIndustrySettings();  // 業種設定読み込み
       updateSystemStatus();
       
       // 入力フィールドにフォーカス
       document.getElementById('searchInput').focus();
     });
+
+    // ===== 業種設定管理 =====
+    
+    /**
+     * 業種設定を読み込んでUIに反映
+     */
+    function loadIndustrySettings() {
+      console.log('🎨 業種設定読み込み開始');
+      
+      google.script.run
+        .withSuccessHandler(applyIndustrySettings)
+        .withFailureHandler(function(error) {
+          console.error('❌ 業種設定読み込みエラー:', error);
+          console.log('🔄 デフォルト設定で続行');
+          // デフォルト設定で続行
+          applyDefaultSettings();
+        })
+        .getIndustryUISettings();
+    }
+    
+    /**
+     * 業種設定をUIに適用
+     */
+    function applyIndustrySettings(settings) {
+      console.log('🎨 業種設定適用開始:', settings);
+      
+      try {
+        // タイトル更新
+        if (settings.title) {
+          document.querySelector('.header h1').textContent = settings.title;
+          document.title = settings.title + ' v2.0';
+          console.log('📝 タイトル更新完了:', settings.title);
+        }
+        
+        // プレースホルダー更新
+        if (settings.placeholder) {
+          document.getElementById('searchInput').placeholder = settings.placeholder;
+          console.log('📝 プレースホルダー更新完了:', settings.placeholder);
+        }
+        
+        // 検索例動的生成
+        if (settings.searchExamples && Array.isArray(settings.searchExamples)) {
+          updateSearchExamples(settings.searchExamples);
+          console.log('📝 検索例更新完了:', settings.searchExamples.length, '個');
+        }
+        
+        // カラーテーマ適用
+        if (settings.colors) {
+          applyColorTheme(settings.colors);
+          console.log('🎨 カラーテーマ適用完了:', settings.colors.primary);
+        }
+        
+        console.log('✅ 業種設定適用完了');
+        
+      } catch (error) {
+        console.error('❌ 業種設定適用エラー:', error);
+        applyDefaultSettings();
+      }
+    }
+    
+    /**
+     * 検索例タグを動的生成
+     */
+    function updateSearchExamples(examples) {
+      const container = document.querySelector('.example-tags');
+      if (!container) {
+        console.warn('⚠️ 検索例コンテナが見つかりません');
+        return;
+      }
+      
+      // 全データ表示は常に最初に配置
+      let html = '<span class="example-tag" onclick="searchExample(\'\')">全データ表示</span>';
+      
+      // 業種別検索例を追加
+      examples.forEach(example => {
+        html += `<span class="example-tag" onclick="searchExample('${example}')">${example}</span>`;
+      });
+      
+      container.innerHTML = html;
+      console.log(`📝 検索例タグ生成完了: ${examples.length}個`);
+    }
+    
+    /**
+     * カラーテーマを適用
+     */
+    function applyColorTheme(colors) {
+      if (!colors || !colors.primary) {
+        console.warn('⚠️ カラー設定が不完全です');
+        return;
+      }
+      
+      const root = document.documentElement;
+      
+      // CSS変数を更新
+      if (colors.primary) root.style.setProperty('--primary-khaki', colors.primary);
+      if (colors.light) root.style.setProperty('--light-khaki', colors.light);
+      if (colors.pale) root.style.setProperty('--pale-khaki', colors.pale);
+      if (colors.cream) root.style.setProperty('--cream-khaki', colors.cream);
+      if (colors.dark) root.style.setProperty('--dark-khaki', colors.dark);
+      if (colors.accent) root.style.setProperty('--accent-khaki', colors.accent);
+      
+      console.log('🎨 CSS変数更新完了');
+    }
+    
+    /**
+     * デフォルト設定適用（エラー時のフォールバック）
+     */
+    function applyDefaultSettings() {
+      console.log('🔄 デフォルト設定適用開始');
+      
+      const defaultSettings = {
+        title: '🏗️ デザイン事務所ドキュメント検索システム',
+        placeholder: '例: 設計, 平面図, カフェ設計...',
+        searchExamples: ['設計', '平面図', 'カフェ', '住宅', 'テラス', '2階'],
+        colors: {
+          primary: '#8B9A5B',
+          light: '#A8B373',
+          pale: '#C5D197',
+          cream: '#F5F7F0',
+          dark: '#6B7A47',
+          accent: '#9CAD6B'
+        }
+      };
+      
+      applyIndustrySettings(defaultSettings);
+      console.log('✅ デフォルト設定適用完了');
+    }
 
     // システム状態更新
     async function updateSystemStatus() {
@@ -1373,6 +1503,125 @@
         console.error('❌ 検索統計テスト実行例外:', error);
         alert(`❌ 検索統計テスト実行例外\n\n${error.message}`);
       }
+    }
+
+    // 業種設定テスト関数
+    function testIndustryConfig() {
+      try {
+        console.log('🏢 業種設定テスト開始');
+        showLoadingStatus('🏢 業種設定テスト中...');
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            hideLoadingStatus();
+            console.log('🏢 業種設定テスト結果:', result);
+            
+            if (result && result.success) {
+              let message = `✅ 業種設定テスト成功！\n\n${result.summary}\n\n詳細結果:\n`;
+              result.results.forEach((testResult, index) => {
+                message += `${index + 1}. ${testResult}\n`;
+              });
+              alert(message);
+            } else {
+              alert(`❌ 業種設定テスト失敗\n\n${result ? result.error : '不明なエラー'}\n\n${result ? result.summary : ''}`);
+            }
+          })
+          .withFailureHandler(function(error) {
+            hideLoadingStatus();
+            console.error('❌ 業種設定テストエラー:', error);
+            alert(`❌ 業種設定テストエラー\n\n${error.message || error}`);
+          })
+          .testIndustryConfigSystem();
+          
+      } catch (error) {
+        hideLoadingStatus();
+        console.error('❌ 業種設定テスト実行例外:', error);
+        alert(`❌ 業種設定テスト実行例外\n\n${error.message}`);
+      }
+    }
+
+    // 業種切り替えUIを表示
+    function showIndustrySelector() {
+      console.log('🏢 業種切り替えUI表示開始');
+      showLoadingStatus('🏢 業種一覧取得中...');
+      
+      google.script.run
+        .withSuccessHandler(function(industries) {
+          hideLoadingStatus();
+          console.log('🏢 業種一覧取得完了:', industries);
+          
+          let html = `
+            <div class="industry-selector" style="margin: 20px 0; padding: 20px; border: 2px solid var(--primary-khaki); border-radius: 8px; background: var(--cream-khaki);">
+              <h4>🏢 業種切り替え</h4>
+              <p>現在のシステムを別業種向けに切り替えることができます。</p>
+              <div style="margin: 10px 0;">
+                <label for="industrySelect">業種を選択:</label>
+                <select id="industrySelect" style="margin-left: 10px; padding: 5px;">
+                  ${industries.map(industry => 
+                    `<option value="${industry.key}">${industry.name}</option>`
+                  ).join('')}
+                </select>
+              </div>
+              <div style="margin-top: 15px;">
+                <button onclick="switchIndustry()" class="mgmt-btn" style="margin-right: 10px;">🔄 切り替え実行</button>
+                <button onclick="previewIndustry()" class="mgmt-btn" style="margin-right: 10px;">👁️ プレビュー</button>
+                <button onclick="hideIndustrySelector()" class="mgmt-btn">❌ キャンセル</button>
+              </div>
+            </div>`;
+          
+          // 管理機能エリアに挿入
+          const resultsDiv = document.getElementById('results');
+          resultsDiv.innerHTML = html;
+          
+          // 管理エリアまでスクロール
+          resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        })
+        .withFailureHandler(function(error) {
+          hideLoadingStatus();
+          console.error('❌ 業種一覧取得エラー:', error);
+          alert(`❌ 業種一覧取得エラー\n\n${error.message || error}`);
+        })
+        .getAvailableIndustries();
+    }
+
+    // 業種切り替え実行
+    function switchIndustry() {
+      const selectedIndustry = document.getElementById('industrySelect').value;
+      const selectedOption = document.getElementById('industrySelect').options[document.getElementById('industrySelect').selectedIndex];
+      const industryName = selectedOption.textContent;
+      
+      if (confirm(`本当に「${industryName}」に切り替えますか？\n\n切り替え後、ページが自動で再読み込みされます。`)) {
+        console.log(`🏢 業種切り替え実行: ${selectedIndustry}`);
+        showLoadingStatus('🏢 業種切り替え中...');
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            hideLoadingStatus();
+            
+            if (result && result.success) {
+              alert(`✅ ${result.message}\n\nページを再読み込みします。`);
+              location.reload();
+            } else {
+              alert(`❌ 切り替えエラー: ${result ? result.error : '不明なエラー'}`);
+            }
+          })
+          .withFailureHandler(function(error) {
+            hideLoadingStatus();
+            console.error('❌ 業種切り替えエラー:', error);
+            alert(`❌ 業種切り替えエラー\n\n${error.message || error}`);
+          })
+          .setIndustryType(selectedIndustry);
+      }
+    }
+
+    // 業種プレビュー
+    function previewIndustry() {
+      alert('プレビュー機能は開発中です。\n\n実際に切り替えるには「切り替え実行」をクリックしてください。');
+    }
+
+    // 業種切り替えUI非表示
+    function hideIndustrySelector() {
+      document.getElementById('results').innerHTML = '<div class="loading">管理機能を選択してください</div>';
     }
 
     // セッション作成単体テスト

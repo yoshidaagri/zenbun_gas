@@ -107,6 +107,94 @@ function getAvailableIndustries() {
 }
 
 /**
+ * 業種切り替え機能テスト関数
+ * @returns {Object} テスト結果
+ */
+function testIndustryConfigSystem() {
+  try {
+    console.log('🧪 ===== 業種切り替え機能テスト開始 =====');
+    let results = [];
+    
+    // Test 1: デフォルト設定確認
+    console.log('📊 Test 1: デフォルト設定確認');
+    const defaultConfig = ConfigManager.getIndustryConfig();
+    console.log('デフォルト業種:', defaultConfig.name);
+    results.push(`✅ Test 1: デフォルト設定 = ${defaultConfig.name}`);
+    
+    // Test 2: 会計事務所への切り替え
+    console.log('📊 Test 2: 会計事務所への切り替え');
+    ConfigManager.setIndustry('accounting_office');
+    const accountingConfig = ConfigManager.getIndustryConfig();
+    console.log('切り替え後:', accountingConfig.name);
+    if (accountingConfig.name === '会計事務所') {
+      results.push('✅ Test 2: 会計事務所切り替え成功');
+    } else {
+      results.push('❌ Test 2: 会計事務所切り替え失敗');
+    }
+    
+    // Test 3: UI設定確認
+    console.log('📊 Test 3: UI設定確認');
+    const uiSettings = ConfigManager.getUISettings();
+    console.log('検索例:', uiSettings.searchExamples);
+    if (uiSettings.searchExamples.includes('決算書')) {
+      results.push('✅ Test 3: UI設定正常（会計検索例含む）');
+    } else {
+      results.push('❌ Test 3: UI設定異常（会計検索例なし）');
+    }
+    
+    // Test 4: API動作確認
+    console.log('📊 Test 4: API動作確認');
+    const apiSettings = getIndustryUISettings();
+    if (apiSettings && apiSettings.title.includes('会計事務所')) {
+      results.push('✅ Test 4: API正常動作');
+    } else {
+      results.push('❌ Test 4: API異常動作');
+    }
+    
+    // Test 5: 業種一覧取得
+    console.log('📊 Test 5: 業種一覧取得');
+    const industries = getAvailableIndustries();
+    console.log('利用可能業種:', industries.map(i => i.name));
+    if (industries.length >= 2) {
+      results.push(`✅ Test 5: 業種一覧取得成功（${industries.length}業種）`);
+    } else {
+      results.push('❌ Test 5: 業種一覧取得失敗');
+    }
+    
+    // Test 6: デザイン事務所に戻す
+    console.log('📊 Test 6: デザイン事務所に戻す');
+    ConfigManager.setIndustry('design_office');
+    const resetConfig = ConfigManager.getIndustryConfig();
+    if (resetConfig.name === 'デザイン事務所') {
+      results.push('✅ Test 6: デザイン事務所復帰成功');
+    } else {
+      results.push('❌ Test 6: デザイン事務所復帰失敗');
+    }
+    
+    console.log('🧪 ===== 業種切り替え機能テスト完了 =====');
+    
+    const successCount = results.filter(r => r.startsWith('✅')).length;
+    const totalCount = results.length;
+    const successRate = Math.round((successCount / totalCount) * 100);
+    
+    return {
+      success: successCount === totalCount,
+      summary: `業種切り替えテスト: ${successCount}/${totalCount}成功 (${successRate}%)`,
+      results: results,
+      successRate: successRate
+    };
+    
+  } catch (error) {
+    console.error('❌ 業種切り替えテストエラー:', error);
+    return {
+      success: false,
+      error: error.message,
+      summary: '業種切り替えテストでエラー発生'
+    };
+  }
+}
+
+/**
  * 検索統計テスト関数
  * @param {string} testQuery テスト用検索クエリ
  * @returns {Object} テスト結果
