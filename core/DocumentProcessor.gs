@@ -818,22 +818,37 @@ class DocumentProcessor {
    * @returns {string} プロンプト
    */
   static createSummaryPrompt(fileName, extractedText) {
-    return `
-あなたはデザイン事務所の秘書の検索アシスタントです。
-以下のドキュメント情報から、デザイナーが欲しがる要点を簡潔にまとめてください。
+    try {
+      // 現在の業種設定からAIプロンプトを取得
+      const industryConfig = ConfigManager.getIndustryConfig();
+      const industryPrompt = industryConfig.aiPrompt || 'あなたは文書解析の専門AIです。';
+      
+      console.log(`🤖 業種特化プロンプト使用: ${industryConfig.name}`);
+      
+      return `
+${industryPrompt}
+
+以下のドキュメント情報から、重要なポイントを簡潔にまとめてください。
 
 ファイル名: ${fileName}
 抽出テキスト: ${extractedText}
 
-以下の観点でまとめてください：
-1. プロジェクト名・建物名
-2. 設計内容（平面図、立面図、詳細図など）
-3. 重要な寸法や仕様
-4. 特記事項
-5. 用途・目的
-
-簡潔で検索しやすい形式で200文字以内にまとめてください。
+400文字以内で簡潔に、専門用語を使って検索しやすい形式でまとめてください。
 `;
+    } catch (error) {
+      console.error('❌ 業種設定取得エラー - デフォルトプロンプト使用:', error);
+      
+      // フォールバック: デフォルトプロンプト
+      return `
+あなたは文書解析の専門AIです。
+以下のドキュメント情報から、重要なポイントを簡潔にまとめてください。
+
+ファイル名: ${fileName}
+抽出テキスト: ${extractedText}
+
+400文字以内で簡潔に、検索しやすい形式でまとめてください。
+`;
+    }
   }
 
   /**
