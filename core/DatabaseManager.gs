@@ -64,6 +64,25 @@ class DatabaseManager {
       sheet.appendRow(row);
       console.log('✅ 保存完了');
       
+      // 🆕 ドキュメント保存統計記録
+      try {
+        console.log('📊 ドキュメント保存統計記録開始');
+        this.logUsageStats(
+          'document_saved',
+          {
+            fileName: document.fileName,
+            fileType: document.fileType,
+            hasExtractedText: !!(document.extractedText && document.extractedText.length > 0),
+            hasAiSummary: !!(document.aiSummary && document.aiSummary.length > 0),
+            extractedTextLength: document.extractedText ? document.extractedText.length : 0,
+            aiSummaryLength: document.aiSummary ? document.aiSummary.length : 0
+          }
+        );
+        console.log('📊 ドキュメント保存統計記録完了');
+      } catch (saveStatsError) {
+        console.error('❌ ドキュメント保存統計記録エラー（保存は続行）:', saveStatsError);
+      }
+      
     } catch (error) {
       throw ErrorHandler.handleDatabaseError(error, 'ドキュメント保存');
     }

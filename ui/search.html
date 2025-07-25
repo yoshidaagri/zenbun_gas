@@ -957,6 +957,9 @@
       <button class="mgmt-btn" onclick="testGeminiConnection()">🤖 Gemini接続テスト</button>
       <button class="mgmt-btn" onclick="runDebugTests()">🔧 詳細デバッグ</button>
       <button class="mgmt-btn" onclick="testSearchStats()">📊 検索統計テスト</button>
+      <button class="mgmt-btn" onclick="testDocumentAnalysisStats()">📈 解析統計テスト</button>
+      <button class="mgmt-btn" onclick="testAISummaryGeneration()">🤖 AI要約生成テスト</button>
+      <button class="mgmt-btn" onclick="clearAccountingAISummary()">🧹 会計AI要約クリア</button>
       <button class="mgmt-btn" onclick="testIndustryConfig()">🏢 業種設定テスト</button>
       <button class="mgmt-btn" onclick="showIndustrySelector()">🔄 業種切り替え</button>
       <button class="mgmt-btn" onclick="testAnalysisConnection()">🧪 AI分析接続テスト</button>
@@ -1502,6 +1505,107 @@
         hideLoadingStatus();
         console.error('❌ 検索統計テスト実行例外:', error);
         alert(`❌ 検索統計テスト実行例外\n\n${error.message}`);
+      }
+    }
+
+    // 新規ドキュメント解析統計テスト関数
+    function testDocumentAnalysisStats() {
+      try {
+        console.log('📈 新規ドキュメント解析統計テスト開始');
+        showLoadingStatus('📈 解析統計テスト中...');
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            hideLoadingStatus();
+            console.log('📈 解析統計テスト結果:', result);
+            
+            if (result && result.success) {
+              alert(`✅ 新規ドキュメント解析統計テスト成功！\n\n` +
+                   `${result.summary}\n\n` +
+                   `成功: ${result.successCount}/${result.totalCount}\n\n` +
+                   `詳細結果:\n` +
+                   `・ドキュメント解析統計: ${result.results.tests.documentAnalysisStats?.success ? '✅' : '❌'}\n` +
+                   `・ファイル処理統計: ${result.results.tests.fileProcessedStats?.success ? '✅' : '❌'}\n` +
+                   `・ドキュメント保存統計: ${result.results.tests.documentSavedStats?.success ? '✅' : '❌'}\n` +
+                   `・統計取得テスト: ${result.results.tests.statsRetrieval?.success ? '✅' : '❌'}\n\n` +
+                   `GASログで詳細な統計記録を確認してください。`);
+            } else {
+              let errorDetails = '';
+              if (result && result.results && result.results.errors) {
+                errorDetails = '\n\nエラー詳細:\n' + result.results.errors.join('\n');
+              }
+              alert(`❌ 解析統計テスト失敗\n\n${result ? result.summary : '不明なエラー'}${errorDetails}`);
+            }
+          })
+          .withFailureHandler(function(error) {
+            hideLoadingStatus();
+            console.error('❌ 解析統計テストエラー:', error);
+            alert(`❌ 解析統計テストエラー\n\n${error.message || error}`);
+          })
+          .testDocumentAnalysisStats();
+          
+      } catch (error) {
+        hideLoadingStatus();
+        console.error('❌ 解析統計テスト実行例外:', error);
+        alert(`❌ 解析統計テスト実行例外\n\n${error.message}`);
+      }
+    }
+
+    // AI要約生成テスト関数（C列書き込み問題診断用）
+    function testAISummaryGeneration() {
+      try {
+        console.log('🤖 AI要約生成テスト開始');
+        showLoadingStatus('🤖 AI要約生成テスト中...');
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            hideLoadingStatus();
+            console.log('🤖 AI要約生成テスト結果:', result);
+            
+            if (result && result.success) {
+              let testDetails = '';
+              if (result.results.tests.configCheck) {
+                testDetails += `\n・設定確認: ${result.results.tests.configCheck.hasGeminiApiKey ? '✅' : '❌'} (モデル: ${result.results.tests.configCheck.geminiModel})`;
+              }
+              if (result.results.tests.promptGeneration) {
+                testDetails += `\n・プロンプト生成: ${result.results.tests.promptGeneration.success ? '✅' : '❌'}`;
+              }
+              if (result.results.tests.aiSummaryGeneration) {
+                testDetails += `\n・AI要約生成: ${result.results.tests.aiSummaryGeneration.success ? '✅' : '❌'}`;
+                if (result.results.tests.aiSummaryGeneration.summary) {
+                  testDetails += `\n・要約内容: "${result.results.tests.aiSummaryGeneration.summary}..."`;
+                }
+              }
+              
+              alert(`✅ AI要約生成テスト成功！\n\n` +
+                   `${result.summary}\n` +
+                   `成功: ${result.successCount}/${result.totalCount}\n` +
+                   `${testDetails}\n\n` +
+                   `推奨: ${result.recommendation}\n\n` +
+                   `これでC列書き込み問題の原因が特定できます。\n` +
+                   `GASログで詳細なAPI応答を確認してください。`);
+            } else {
+              let errorDetails = '';
+              if (result && result.results && result.results.errors) {
+                errorDetails = '\n\nエラー詳細:\n' + result.results.errors.join('\n');
+              }
+              alert(`❌ AI要約生成テスト失敗\n\n${result ? result.summary : '不明なエラー'}${errorDetails}\n\n` +
+                   `C列書き込み失敗の原因はここにあります。\n` +
+                   `GASログでAI要約生成の詳細エラーを確認してください。`);
+            }
+          })
+          .withFailureHandler(function(error) {
+            hideLoadingStatus();
+            console.error('❌ AI要約生成テストエラー:', error);
+            alert(`❌ AI要約生成テストエラー\n\n${error.message || error}\n\n` +
+                 `これはC列書き込み問題の根本原因です。`);
+          })
+          .testAISummaryGeneration();
+          
+      } catch (error) {
+        hideLoadingStatus();
+        console.error('❌ AI要約生成テスト実行例外:', error);
+        alert(`❌ AI要約生成テスト実行例外\n\n${error.message}`);
       }
     }
 

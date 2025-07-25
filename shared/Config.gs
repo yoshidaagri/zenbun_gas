@@ -523,20 +523,45 @@ class ConfigManager {
   }
 
   /**
-   * スプレッドシート構造定義
+   * スプレッドシート構造定義（業種別対応）
    */
   static getSpreadsheetSchema() {
-    return {
-      headers: ['ファイル名', '抽出テキスト', 'AI概要', 'ファイルID', '更新日', 'ファイル形式'],
-      columns: {
-        fileName: 0,
-        extractedText: 1,
-        aiSummary: 2,
-        fileId: 3,
-        updateDate: 4,
-        fileType: 5
+    try {
+      const industryConfig = this.getIndustryConfig();
+      
+      // 業種別のC列ヘッダー
+      let aiColumnHeader = 'AI概要';
+      if (industryConfig.name === '会計事務所') {
+        aiColumnHeader = '備考'; // 会計事務所は「備考」列として使用
       }
-    };
+      
+      return {
+        headers: ['ファイル名', '抽出テキスト', aiColumnHeader, 'ファイルID', '更新日', 'ファイル形式'],
+        columns: {
+          fileName: 0,
+          extractedText: 1,
+          aiSummary: 2,  // 内部的には同じ列番号を使用
+          fileId: 3,
+          updateDate: 4,
+          fileType: 5
+        },
+        industryType: industryConfig.name
+      };
+    } catch (error) {
+      console.error('❌ 業種設定取得エラー - デフォルトスキーマ使用:', error);
+      return {
+        headers: ['ファイル名', '抽出テキスト', 'AI概要', 'ファイルID', '更新日', 'ファイル形式'],
+        columns: {
+          fileName: 0,
+          extractedText: 1,
+          aiSummary: 2,
+          fileId: 3,
+          updateDate: 4,
+          fileType: 5
+        },
+        industryType: 'unknown'
+      };
+    }
   }
 }
 

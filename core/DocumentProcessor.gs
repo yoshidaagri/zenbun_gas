@@ -42,6 +42,24 @@ class DocumentProcessor {
       console.log(`終了時刻: ${endTime.toLocaleString()}`);
       console.log('📊 ===== ドキュメント解析完了 =====');
       
+      // 🆕 新規ドキュメント解析の統計記録
+      try {
+        console.log('📊 新規ドキュメント解析統計記録開始');
+        DatabaseManager.logUsageStats(
+          'document_analysis',
+          {
+            processed: result.processed,
+            skipped: result.skipped,
+            errors: result.errors,
+            totalTime: totalTime,
+            averageTime: result.processed > 0 ? (totalTime / result.processed).toFixed(2) : 0
+          }
+        );
+        console.log('📊 新規ドキュメント解析統計記録完了');
+      } catch (statsError) {
+        console.error('❌ 新規ドキュメント解析統計記録エラー（処理は続行）:', statsError);
+      }
+      
       return result;
       
     } catch (error) {
@@ -181,6 +199,22 @@ class DocumentProcessor {
             ...result.timing
           });
           
+          // 🆕 個別ファイル処理の統計記録
+          try {
+            console.log(`📊 ファイル処理統計記録: ${fileName}`);
+            DatabaseManager.logUsageStats(
+              'file_processed',
+              {
+                fileName: fileName,
+                fileType: fileType.name,
+                ocrTime: result.timing.ocrTime,
+                aiTime: result.timing.aiTime
+              }
+            );
+          } catch (fileStatsError) {
+            console.error('❌ ファイル処理統計記録エラー（処理は続行）:', fileStatsError);
+          }
+          
           // APIレート制限対策
           console.log('⏱️ 待機中...');
           Utils.sleep(ConfigManager.getApiLimits().visionApiDelay);
@@ -223,21 +257,36 @@ class DocumentProcessor {
     const ocrTime = (new Date() - ocrStartTime) / 1000;
     console.log(`✅ OCR完了 (${ocrTime}秒): ${extractedText.substring(0, 50)}...`);
     
-    // AI要約生成
-    console.log('🤖 AI要約生成開始...');
+    // AI要約生成（業種別対応）
+    console.log('🤖 AI要約生成判定開始...');
     const aiStartTime = new Date();
+    
+    let aiSummary = '';
+    let aiTime = 0;
     
     // 🆕 業種設定デバッグ情報
     try {
       const industryConfig = ConfigManager.getIndustryConfig();
       console.log(`📊 現在の業種: ${industryConfig.name}`);
       console.log(`🤖 AIプロンプト: ${industryConfig.aiPrompt.substring(0, 50)}...`);
+      
+      // 会計事務所の場合はAI要約をスキップ
+      if (industryConfig.name === '会計事務所') {
+        console.log('📊 会計事務所モード: AI要約生成を完全にスキップ');
+        aiSummary = '-'; // ダッシュでスキップを明示
+        aiTime = 0;
+        console.log('✅ 会計事務所AI要約スキップ完了');
+      } else {
+        console.log('🤖 他業種モード: AI要約生成実行');
+        aiSummary = this.generateDocumentSummary(fileName, extractedText, config.geminiApiKey);
+        aiTime = (new Date() - aiStartTime) / 1000;
+      }
+      
     } catch (industryError) {
-      console.error('❌ 業種設定取得エラー:', industryError);
+      console.error('❌ 業種設定取得エラー - デフォルトAI要約実行:', industryError);
+      aiSummary = this.generateDocumentSummary(fileName, extractedText, config.geminiApiKey);
+      aiTime = (new Date() - aiStartTime) / 1000;
     }
-    
-    const aiSummary = this.generateDocumentSummary(fileName, extractedText, config.geminiApiKey);
-    const aiTime = (new Date() - aiStartTime) / 1000;
     
     // 🆕 AI要約結果の詳細ログ
     console.log(`✅ AI要約完了 (${aiTime}秒)`);
@@ -694,7 +743,25 @@ class DocumentProcessor {
     console.log(`入力テキスト長: ${extractedText.length}文字`);
     
     try {
+      // 🆕 入力データ検証とデバッグ
+      if (!extractedText || extractedText.trim() === '') {
+        console.warn('⚠️ 抽出テキストが空です:', extractedText);
+        return '抽出テキストが空のためAI要約を生成できませんでした';
+      }
+      
+      if (!geminiApiKey || geminiApiKey.trim() === '') {
+        console.error('❌ Gemini APIキーが設定されていません');
+        return 'APIキーが未設定のためAI要約を生成できませんでした';
+      }
+      
+      console.log('🔍 AI要約生成の詳細情報:');
+      console.log(`📄 ファイル名: ${fileName}`);
+      console.log(`📝 抽出テキスト: "${extractedText.substring(0, 200)}..."`);
+      console.log(`🔑 APIキー存在: ${geminiApiKey ? '✅' : '❌'}`);
+      
       const prompt = this.createSummaryPrompt(fileName, extractedText);
+      console.log(`📋 プロンプト長: ${prompt.length}文字`);
+      console.log(`📋 プロンプト内容: ${prompt.substring(0, 300)}...`);
       
       console.log('📤 Gemini APIリクエスト送信中...');
       
@@ -708,7 +775,7 @@ class DocumentProcessor {
           "temperature": 0.1,
           "topK": 1,
           "topP": 1,
-          "maxOutputTokens": 200
+          "maxOutputTokens": 500
         }
       };
 
@@ -725,12 +792,40 @@ class DocumentProcessor {
         }
       );
 
-      console.log(`📥 Gemini APIレスポンス受信: ${response.getResponseCode()}`);
+      const responseCode = response.getResponseCode();
+      const responseText = response.getContentText();
+      console.log(`📥 Gemini APIレスポンス受信: ${responseCode}`);
+      console.log(`📥 レスポンス内容: ${responseText.substring(0, 500)}...`);
       
-      const result = JSON.parse(response.getContentText());
+      if (responseCode !== 200) {
+        console.error(`❌ Gemini API HTTPエラー: ${responseCode}`);
+        console.error(`❌ エラー内容: ${responseText}`);
+        return `AI要約生成エラー (HTTP ${responseCode}): ${responseText.substring(0, 100)}`;
+      }
+      
+      const result = JSON.parse(responseText);
+      console.log('🔍 パースされたレスポンス構造:', JSON.stringify(result, null, 2));
       
       if (result.candidates && result.candidates[0]) {
-        const generatedText = result.candidates[0].content.parts[0].text;
+        const candidate = result.candidates[0];
+        const generatedText = candidate.content.parts[0].text;
+        const finishReason = candidate.finishReason;
+        
+        console.log(`🔍 Gemini応答詳細: finishReason=${finishReason}, textLength=${generatedText ? generatedText.length : 0}`);
+        
+        // 空の応答チェック
+        if (!generatedText || generatedText.trim() === '') {
+          console.warn(`⚠️ Gemini応答が空です: finishReason=${finishReason}`);
+          
+          if (finishReason === 'MAX_TOKENS') {
+            return 'AI要約生成中にトークン制限に達しました。詳細な要約が必要な場合は管理者にお問い合わせください。';
+          } else if (finishReason === 'SAFETY') {
+            return 'セーフティフィルターにより要約生成がブロックされました。';
+          } else {
+            return `AI要約生成が完了しませんでした (理由: ${finishReason})`;
+          }
+        }
+        
         const cleanedText = generatedText.replace(/\n/g, ' ').trim();
         
         const endTime = new Date();
@@ -744,7 +839,15 @@ class DocumentProcessor {
       }
       
       console.error('❌ Gemini APIレスポンスが空です');
-      return 'AI概要生成に失敗しました';
+      console.error('❌ 受信したレスポンス構造:', JSON.stringify(result, null, 2));
+      
+      // 詳細なエラー情報を提供
+      if (result.error) {
+        console.error('❌ API エラー詳細:', result.error);
+        return `AI概要生成エラー: ${result.error.message || result.error}`;
+      }
+      
+      return 'AI概要生成に失敗しました（レスポンス構造が不正）';
       
     } catch (error) {
       console.error('❌ Gemini API エラー詳細:', error);
@@ -769,12 +872,12 @@ class DocumentProcessor {
       if (industryConfig.name === '会計事務所') {
         console.log('📊 会計事務所専用の画像解析プロンプト使用');
         return `
-あなたはGemini 2.0 Flashを使用した会計事務所検索システムです。このレシート・領収書画像から検索用キーワードを抽出してください。
+あなたは会計事務所検索システムです。このレシート・領収書画像から検索用キーワードを抽出してください。
 
 ファイル名: ${fileName}
 画像形式: ${mimeType}
 
-【Gemini 2.0 Flash最適化指示】
+【Gemini 2.5 Flash最適化指示】
 - 高精度な文字認識機能を活用し、レシート内の文字情報を正確に抽出してください
 - 会計・税務の専門知識を活用し、経理業務に必要な情報を理解してください
 - 数値認識の精度向上を活用し、金額・税率・日付を正確に読み取ってください
@@ -791,20 +894,20 @@ class DocumentProcessor {
 9. 割引・キャンペーン情報
 
 【出力形式】
-- 300文字以内で簡潔に
+- 400文字以内で簡潔に
 - 検索しやすいキーワード形式で出力
 - 重要度順に並べる（金額・日付・支払先を優先）
 - 会計・税務の専門用語を使用
 - 数値情報は正確に抽出
 - Gemini 2.0の高精度認識を活用した詳細分析
 
-このレシート・領収書画像の内容をGemini 2.0 Flashの高度な画像解析能力で詳細に分析し、上記の観点でキーワードを抽出してください。
+このレシート・領収書画像の高度な画像解析能力で詳細に分析し、上記の観点でキーワードを抽出してください。
 `;
       } else {
         // デザイン事務所など他業種は従来通り
         console.log('🏗️ デザイン事務所等の標準画像解析プロンプト使用');
         return `
-あなたはGemini 2.0 Flashを使用した${industryConfig.name}検索システムです。この画像から検索用キーワードを抽出してください。
+あなたは${industryConfig.name}検索システムです。この画像から検索用キーワードを抽出してください。
 
 ファイル名: ${fileName}
 画像形式: ${mimeType}
@@ -826,14 +929,13 @@ class DocumentProcessor {
 9. 地名・住所・固有名詞（クライアント名、設計者名、施工会社名など）
 
 【出力形式】
-- 300文字以内で簡潔に
+- 400文字以内で簡潔に
 - 検索しやすいキーワード形式で出力
 - 重要度順に並べる（最重要項目を先頭に）
 - 建築・デザイン専門用語を積極的に含める
 - 画像から読み取れる文字は正確に抽出
-- Gemini 2.0の高精度認識を活用した詳細分析
 
-この画像の内容をGemini 2.0 Flashの高度な画像解析能力で詳細に分析し、上記の観点でキーワードを抽出してください。
+この画像の内容を高度な画像解析能力で詳細に分析し、上記の観点でキーワードを抽出してください。
 `;
       }
     } catch (error) {
@@ -865,9 +967,9 @@ class DocumentProcessor {
       if (industryConfig.name === '会計事務所') {
         console.log('📊 会計事務所専用のPDF解析プロンプト使用');
         return `
-あなたはGemini 2.0 Flashを使用した会計事務所検索システムです。このPDF形式のレシート・領収書・請求書から検索用キーワードを抽出してください。
+あなたは会計事務所検索システムです。このPDF形式のレシート・領収書・請求書から検索用キーワードを抽出してください。
 
-【Gemini 2.0 Flash最適化指示】
+【Gemini 2.5 Flash最適化指示】
 - 高度な文書理解機能を活用し、PDF内容を詳細に解析してください
 - 会計・税務分野の専門知識を活用し、経理業務に必要な情報を正確に理解してください
 - 長文処理能力の向上を活用し、複数ページの文書も包括的に分析してください
@@ -886,7 +988,7 @@ class DocumentProcessor {
 9. 割引・手数料・その他費用
 
 【出力形式】
-- 300文字以内で簡潔に
+- 400文字以内で簡潔に
 - 検索しやすいキーワード形式
 - 重要度順に並べる（金額・日付・支払先を優先）
 - 会計・税務の専門用語を含める
@@ -897,7 +999,7 @@ class DocumentProcessor {
         // デザイン事務所など他業種は従来通り
         console.log('🏗️ デザイン事務所等の標準PDF解析プロンプト使用');
         return `
-あなたはGemini 2.0 Flashを使用した${industryConfig.name}検索システムです。このPDF文書から検索用キーワードを抽出してください。
+あなたは${industryConfig.name}検索システムです。このPDF文書から検索用キーワードを抽出してください。
 
 【Gemini 2.0 Flash最適化指示】
 - 高度な文書理解機能を活用し、PDF内容を詳細に解析してください
@@ -933,7 +1035,7 @@ class DocumentProcessor {
 
 ファイル名: ${fileName}
 
-300文字以内で簡潔に、検索しやすいキーワード形式で出力してください。
+400文字以内で簡潔に、検索しやすいキーワード形式で出力してください。
 `;
     }
   }

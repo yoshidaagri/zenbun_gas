@@ -280,6 +280,295 @@ function testSearchWithStats(testQuery = 'テスト検索') {
 }
 
 /**
+ * 新規ドキュメント解析統計テスト関数
+ * @returns {Object} テスト結果
+ */
+function testDocumentAnalysisStats() {
+  try {
+    console.log('🧪 ===== 新規ドキュメント解析統計テスト開始 =====');
+    
+    const results = {
+      timestamp: new Date().toISOString(),
+      tests: {},
+      success: true,
+      errors: []
+    };
+    
+    // Test 1: ドキュメント解析統計記録テスト
+    console.log('📊 Test 1: ドキュメント解析統計記録');
+    try {
+      DatabaseManager.logUsageStats('document_analysis', {
+        processed: 3,
+        skipped: 1,
+        errors: 0,
+        totalTime: 45.2,
+        averageTime: 15.1
+      });
+      results.tests.documentAnalysisStats = { success: true };
+      console.log('✅ Test 1: ドキュメント解析統計記録成功');
+    } catch (error) {
+      results.tests.documentAnalysisStats = { success: false, error: error.message };
+      results.errors.push('ドキュメント解析統計記録エラー: ' + error.message);
+      results.success = false;
+    }
+    
+    // Test 2: ファイル処理統計記録テスト
+    console.log('📊 Test 2: ファイル処理統計記録');
+    try {
+      DatabaseManager.logUsageStats('file_processed', {
+        fileName: 'test_receipt.jpg',
+        fileType: 'JPEG',
+        ocrTime: 2.3,
+        aiTime: 1.8
+      });
+      results.tests.fileProcessedStats = { success: true };
+      console.log('✅ Test 2: ファイル処理統計記録成功');
+    } catch (error) {
+      results.tests.fileProcessedStats = { success: false, error: error.message };
+      results.errors.push('ファイル処理統計記録エラー: ' + error.message);
+      results.success = false;
+    }
+    
+    // Test 3: ドキュメント保存統計記録テスト
+    console.log('📊 Test 3: ドキュメント保存統計記録');
+    try {
+      DatabaseManager.logUsageStats('document_saved', {
+        fileName: 'test_receipt.jpg',
+        fileType: 'JPEG',
+        hasExtractedText: true,
+        hasAiSummary: true,
+        extractedTextLength: 150,
+        aiSummaryLength: 85
+      });
+      results.tests.documentSavedStats = { success: true };
+      console.log('✅ Test 3: ドキュメント保存統計記録成功');
+    } catch (error) {
+      results.tests.documentSavedStats = { success: false, error: error.message };
+      results.errors.push('ドキュメント保存統計記録エラー: ' + error.message);
+      results.success = false;
+    }
+    
+    // Test 4: 統計取得テスト
+    console.log('📊 Test 4: 統計取得テスト');
+    try {
+      const todayStats = DatabaseManager.getUsageStats('today');
+      results.tests.statsRetrieval = { 
+        success: todayStats.success,
+        hasData: todayStats.success && todayStats.data && Object.keys(todayStats.data).length > 0
+      };
+      if (todayStats.success) {
+        console.log('✅ Test 4: 統計取得成功');
+      } else {
+        results.errors.push('統計取得失敗: ' + (todayStats.error || '不明'));
+        results.success = false;
+      }
+    } catch (error) {
+      results.tests.statsRetrieval = { success: false, error: error.message };
+      results.errors.push('統計取得エラー: ' + error.message);
+      results.success = false;
+    }
+    
+    const successCount = Object.values(results.tests).filter(t => t.success).length;
+    const totalCount = Object.keys(results.tests).length;
+    
+    console.log('🧪 ===== 新規ドキュメント解析統計テスト完了 =====');
+    console.log(`結果: ${successCount}/${totalCount} 成功`);
+    
+    return {
+      success: results.success,
+      summary: `新規ドキュメント解析統計テスト: ${successCount}/${totalCount}成功`,
+      results: results,
+      successCount: successCount,
+      totalCount: totalCount
+    };
+    
+  } catch (error) {
+    console.error('❌ 新規ドキュメント解析統計テストエラー:', error);
+    return {
+      success: false,
+      error: error.message,
+      summary: '新規ドキュメント解析統計テストでエラー発生'
+    };
+  }
+}
+
+/**
+ * AI要約生成単体テスト関数（C列書き込み問題診断用）
+ * @returns {Object} テスト結果
+ */
+function testAISummaryGeneration() {
+  try {
+    console.log('🧪 ===== AI要約生成単体テスト開始 =====');
+    
+    const results = {
+      timestamp: new Date().toISOString(),
+      tests: {},
+      success: true,
+      errors: []
+    };
+    
+    // Test 1: 設定確認
+    console.log('📋 Test 1: 設定確認');
+    const config = ConfigManager.getConfig();
+    results.tests.configCheck = {
+      hasGeminiApiKey: !!config.geminiApiKey,
+      geminiModel: ConfigManager.getGeminiModel()
+    };
+    
+    if (!config.geminiApiKey) {
+      results.errors.push('Gemini APIキーが未設定');
+      results.success = false;
+    }
+    
+    // Test 2: プロンプト生成テスト
+    console.log('📋 Test 2: プロンプト生成テスト');
+    try {
+      const testPrompt = DocumentProcessor.createSummaryPrompt(
+        'test_receipt.jpg', 
+        'テスト店舗\n2024/07/25\n合計: 1,500円\n消費税: 150円'
+      );
+      results.tests.promptGeneration = {
+        success: true,
+        promptLength: testPrompt.length,
+        containsIndustryInfo: testPrompt.includes('会計事務所') || testPrompt.includes('デザイン事務所')
+      };
+      console.log('✅ Test 2: プロンプト生成成功');
+    } catch (error) {
+      results.tests.promptGeneration = { success: false, error: error.message };
+      results.errors.push('プロンプト生成エラー: ' + error.message);
+      results.success = false;
+    }
+    
+    // Test 3: AI要約生成テスト（業種別対応）
+    console.log('📋 Test 3: AI要約生成テスト（業種別対応）');
+    try {
+      const industryConfig = ConfigManager.getIndustryConfig();
+      
+      if (industryConfig.name === '会計事務所') {
+        console.log('📊 会計事務所モード: AI要約生成スキップテスト');
+        results.tests.aiSummaryGeneration = {
+          success: true,
+          mode: 'accounting_office_skip',
+          summaryLength: 0,
+          summary: '会計事務所モードではAI要約を生成しません',
+          hasErrorKeywords: false
+        };
+        console.log('✅ Test 3: 会計事務所AI要約スキップ正常');
+      } else {
+        console.log('🤖 他業種モード: AI要約生成実行テスト');
+        const testSummary = DocumentProcessor.generateDocumentSummary(
+          'test_receipt.jpg',
+          'テスト店舗\n2024/07/25 15:30\n商品A: 800円\n商品B: 700円\n小計: 1,500円\n消費税(10%): 150円\n合計: 1,650円\n支払方法: 現金',
+          config.geminiApiKey
+        );
+        
+        results.tests.aiSummaryGeneration = {
+          success: !!testSummary && !testSummary.includes('エラー'),
+          mode: 'other_industry_generate',
+          summaryLength: testSummary ? testSummary.length : 0,
+          summary: testSummary ? testSummary.substring(0, 200) : null,
+          hasErrorKeywords: testSummary ? testSummary.includes('エラー') || testSummary.includes('失敗') : false
+        };
+        
+        if (!testSummary || testSummary.includes('エラー')) {
+          results.errors.push('AI要約生成失敗: ' + testSummary);
+          results.success = false;
+        } else {
+          console.log('✅ Test 3: AI要約生成成功');
+        }
+      }
+    } catch (error) {
+      results.tests.aiSummaryGeneration = { success: false, error: error.message };
+      results.errors.push('AI要約生成エラー: ' + error.message);
+      results.success = false;
+    }
+    
+    const successCount = Object.values(results.tests).filter(t => t.success !== false).length;
+    const totalCount = Object.keys(results.tests).length;
+    
+    console.log('🧪 ===== AI要約生成単体テスト完了 =====');
+    console.log(`結果: ${successCount}/${totalCount} 成功`);
+    
+    return {
+      success: results.success,
+      summary: `AI要約生成テスト: ${successCount}/${totalCount}成功`,
+      results: results,
+      successCount: successCount,
+      totalCount: totalCount,
+      recommendation: results.success ? '正常動作中' : 'GASログで詳細エラーを確認してください'
+    };
+    
+  } catch (error) {
+    console.error('❌ AI要約生成テストエラー:', error);
+    return {
+      success: false,
+      error: error.message,
+      summary: 'AI要約生成テストでエラー発生'
+    };
+  }
+}
+
+/**
+ * 会計事務所用：既存AI要約データクリア関数
+ * @returns {Object} クリア結果
+ */
+function clearAISummaryForAccountingOffice() {
+  try {
+    console.log('🧹 ===== 会計事務所用AI要約データクリア開始 =====');
+    
+    // 現在の業種確認
+    const industryConfig = ConfigManager.getIndustryConfig();
+    if (industryConfig.name !== '会計事務所') {
+      return {
+        success: false,
+        error: '会計事務所モードでのみ実行可能です',
+        currentIndustry: industryConfig.name
+      };
+    }
+    
+    const config = ConfigManager.getConfig();
+    if (!config.spreadsheetId) {
+      return {
+        success: false,
+        error: 'スプレッドシートIDが設定されていません'
+      };
+    }
+    
+    const spreadsheet = SpreadsheetApp.openById(config.spreadsheetId);
+    const sheet = spreadsheet.getActiveSheet();
+    const lastRow = sheet.getLastRow();
+    
+    if (lastRow <= 1) {
+      return {
+        success: true,
+        message: 'データが存在しないためクリア不要',
+        clearedRows: 0
+      };
+    }
+    
+    // C列（AI概要列）をクリア
+    const range = sheet.getRange(2, 3, lastRow - 1, 1); // 2行目からC列
+    range.setValue('-'); // ダッシュで統一
+    
+    console.log(`✅ ${lastRow - 1}行のAI要約データをクリアしました`);
+    
+    return {
+      success: true,
+      message: '会計事務所用AI要約データクリア完了',
+      clearedRows: lastRow - 1,
+      newValue: '-'
+    };
+    
+  } catch (error) {
+    console.error('❌ AI要約データクリアエラー:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
  * ドキュメント解析実行
  * @returns {Object} 解析結果
  */
