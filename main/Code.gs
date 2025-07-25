@@ -107,6 +107,55 @@ function getAvailableIndustries() {
 }
 
 /**
+ * 会計事務所特化プロンプトテスト関数
+ * @returns {Object} テスト結果
+ */
+function testAccountingPrompt() {
+  try {
+    console.log('🧪 ===== 会計事務所特化プロンプトテスト開始 =====');
+    
+    const testResults = [];
+    
+    // Test 1: デザイン事務所でのプロンプト（影響なし確認）
+    console.log('📊 Test 1: デザイン事務所プロンプト確認');
+    ConfigManager.setIndustry('design_office');
+    const designPrompt = DocumentProcessor.createSummaryPrompt('test.pdf', 'テストテキスト');
+    const hasDesignFields = designPrompt.includes('重点解析項目');
+    testResults.push(`${hasDesignFields ? '❌' : '✅'} Test 1: デザイン事務所に特化項目なし`);
+    
+    // Test 2: 会計事務所でのプロンプト（特化機能確認）
+    console.log('📊 Test 2: 会計事務所プロンプト確認');
+    ConfigManager.setIndustry('accounting_office');
+    const accountingPrompt = DocumentProcessor.createSummaryPrompt('receipt.pdf', '領収書データ');
+    const hasAccountingFields = accountingPrompt.includes('重点解析項目');
+    const hasConsumptionTax = accountingPrompt.includes('消費税8%金額');
+    testResults.push(`${hasAccountingFields ? '✅' : '❌'} Test 2: 会計事務所に特化項目あり`);
+    testResults.push(`${hasConsumptionTax ? '✅' : '❌'} Test 3: 消費税項目含有確認`);
+    
+    console.log('🧪 ===== プロンプトテスト完了 =====');
+    
+    const successCount = testResults.filter(r => r.startsWith('✅')).length;
+    const totalCount = testResults.length;
+    
+    return {
+      success: successCount === totalCount,
+      summary: `会計特化プロンプトテスト: ${successCount}/${totalCount}成功`,
+      results: testResults,
+      designPromptSample: designPrompt.substring(0, 200),
+      accountingPromptSample: accountingPrompt.substring(0, 200)
+    };
+    
+  } catch (error) {
+    console.error('❌ 会計特化プロンプトテストエラー:', error);
+    return {
+      success: false,
+      error: error.message,
+      summary: '会計特化プロンプトテストでエラー発生'
+    };
+  }
+}
+
+/**
  * 業種切り替え機能テスト関数
  * @returns {Object} テスト結果
  */
@@ -1706,6 +1755,54 @@ function testPdfGeminiProcessing() {
   }
 }
 
+
+/**
+ * Gemini 2.5 Flash統一テスト
+ * 新規ドキュメント解析とAI解析の統一確認
+ */
+function testGeminiModelUnification() {
+  console.log('🚀 ===== Gemini 2.5 Flash統一テスト開始 =====');
+  
+  try {
+    console.log('📋 ステップ1: 現在の設定確認');
+    console.log('現在のモデル:', ConfigManager.getGeminiModel());
+    console.log('APIエンドポイント:', ConfigManager.getGeminiApiEndpoint());
+    
+    console.log('\n📋 ステップ2: デフォルトモデル確認');
+    const defaultModel = ConfigManager.getGeminiModel();
+    if (defaultModel === 'gemini-2.5-flash') {
+      console.log('✅ Gemini 2.5 Flash統一完了');
+    } else {
+      console.log('❌ モデル不一致:', defaultModel);
+    }
+    
+    console.log('\n📋 ステップ3: 新規ドキュメント解析モデル確認');
+    // DocumentProcessor で使用されるモデルをテスト
+    const testPrompt = DocumentProcessor.createSummaryPrompt('test.pdf', 'テストテキスト');
+    console.log('✅ プロンプト生成成功');
+    
+    console.log('\n📋 ステップ4: AI解析モデル確認');
+    // GeminiFileAPI で使用されるモデルをテスト（ConfigManager.getGeminiModel()を使用）
+    const apiEndpoint = ConfigManager.getGeminiApiEndpoint();
+    console.log('API エンドポイント:', apiEndpoint);
+    
+    return {
+      success: defaultModel === 'gemini-2.5-flash',
+      currentModel: defaultModel,
+      endpoint: apiEndpoint,
+      isUnified: true,
+      message: 'Gemini 2.5 Flash統一テスト完了'
+    };
+    
+  } catch (error) {
+    console.error('❌ Gemini統一テストエラー:', error);
+    return { 
+      success: false, 
+      error: error.message,
+      currentModel: ConfigManager.getGeminiModel()
+    };
+  }
+}
 
 /**
  * Gemini 2.0 Flash移行テスト

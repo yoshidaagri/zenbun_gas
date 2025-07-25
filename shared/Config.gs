@@ -33,8 +33,17 @@ const INDUSTRY_TEMPLATES = {
       dark: '#1B5E20',
       accent: '#66BB6A'
     },
-    aiPrompt: 'あなたは会計事務所の専門AIです。決算書、帳簿、税務書類を専門に解析します。400文字以内で簡潔に、会計・税務の専門用語を使って回答してください。',
-    documentTypes: ['決算書', '帳簿', '請求書', '領収書', '税務書類', '給与明細']
+    aiPrompt: 'あなたは会計事務所のレシート・領収書解析専門AIです。会計処理に必要な情報を正確に抽出し、経理業務を支援します。設計図面や建築関連情報は対象外です。400文字以内で簡潔に、会計・税務の専門用語を使って回答してください。',
+    documentTypes: ['決算書', '帳簿', '請求書', '領収書', '税務書類', '給与明細'],
+    // 🆕 会計事務所専用: 重点解析項目
+    analysisFields: [
+      '消費税8%金額',
+      '消費税10%金額', 
+      'インボイス登録番号',
+      '小計(税込)',
+      '小計(税抜)',
+      '支払方法(現金/カード)'
+    ]
   }
 };
 
@@ -207,15 +216,15 @@ class ConfigManager {
       return customModel;
     }
     
-    // デフォルトはGemini 2.0 Flash
-    const defaultModel = 'gemini-2.0-flash-exp';
+    // デフォルトはGemini 2.5 Flash（AI解析との統一）
+    const defaultModel = 'gemini-2.5-flash';
     console.log(`🤖 デフォルトGeminiモデル: ${defaultModel}`);
     return defaultModel;
   }
 
   /**
    * Geminiモデル設定
-   * @param {string} modelName モデル名 (gemini-2.0-flash-exp, gemini-1.5-flash等)
+   * @param {string} modelName モデル名 (gemini-2.5-flash, gemini-2.0-flash-exp, gemini-1.5-flash等)
    */
   static setGeminiModel(modelName) {
     const properties = PropertiesService.getScriptProperties();

@@ -226,9 +226,28 @@ class DocumentProcessor {
     // AI要約生成
     console.log('🤖 AI要約生成開始...');
     const aiStartTime = new Date();
+    
+    // 🆕 業種設定デバッグ情報
+    try {
+      const industryConfig = ConfigManager.getIndustryConfig();
+      console.log(`📊 現在の業種: ${industryConfig.name}`);
+      console.log(`🤖 AIプロンプト: ${industryConfig.aiPrompt.substring(0, 50)}...`);
+    } catch (industryError) {
+      console.error('❌ 業種設定取得エラー:', industryError);
+    }
+    
     const aiSummary = this.generateDocumentSummary(fileName, extractedText, config.geminiApiKey);
     const aiTime = (new Date() - aiStartTime) / 1000;
-    console.log(`✅ AI要約完了 (${aiTime}秒): ${aiSummary.substring(0, 50)}...`);
+    
+    // 🆕 AI要約結果の詳細ログ
+    console.log(`✅ AI要約完了 (${aiTime}秒)`);
+    console.log(`📝 AI要約内容: "${aiSummary}"`);
+    console.log(`📏 AI要約文字数: ${aiSummary ? aiSummary.length : 0}文字`);
+    console.log(`🔍 AI要約タイプ: ${typeof aiSummary}`);
+    
+    if (!aiSummary || aiSummary === 'undefined' || aiSummary.includes('エラー')) {
+      console.error('❌ AI要約生成に問題があります:', aiSummary);
+    }
     
     return {
       extractedText: extractedText,
@@ -734,14 +753,58 @@ class DocumentProcessor {
   }
 
   /**
-   * 画像解析用プロンプトを作成
+   * 画像解析用プロンプトを作成（業種別対応）
    * @param {string} fileName ファイル名
    * @param {string} mimeType MIMEタイプ
    * @returns {string} プロンプト
    */
   static createImageAnalysisPrompt(fileName, mimeType) {
-    return `
-あなたはGemini 2.0 Flashを使用したデザイン事務所検索システムです。この画像から検索用キーワードを抽出してください。
+    console.log('🔍 画像解析プロンプト作成開始（業種別対応）');
+    
+    try {
+      // 現在の業種設定を取得
+      const industryConfig = ConfigManager.getIndustryConfig();
+      console.log(`📊 業種: ${industryConfig.name}`);
+      
+      if (industryConfig.name === '会計事務所') {
+        console.log('📊 会計事務所専用の画像解析プロンプト使用');
+        return `
+あなたはGemini 2.0 Flashを使用した会計事務所検索システムです。このレシート・領収書画像から検索用キーワードを抽出してください。
+
+ファイル名: ${fileName}
+画像形式: ${mimeType}
+
+【Gemini 2.0 Flash最適化指示】
+- 高精度な文字認識機能を活用し、レシート内の文字情報を正確に抽出してください
+- 会計・税務の専門知識を活用し、経理業務に必要な情報を理解してください
+- 数値認識の精度向上を活用し、金額・税率・日付を正確に読み取ってください
+
+【抽出すべき項目（会計事務所特化）】
+1. 店舗・事業者名（支払先の特定）
+2. 日付・時刻（取引日の特定）
+3. 金額情報（小計、税込合計、消費税額、税率）
+4. 支払方法（現金、カード、電子マネー等）
+5. 商品・サービス内容（勘定科目の判定用）
+6. インボイス登録番号（適格請求書の確認）
+7. 住所・電話番号（事業者情報）
+8. レシート番号・管理番号（証憑管理用）
+9. 割引・キャンペーン情報
+
+【出力形式】
+- 300文字以内で簡潔に
+- 検索しやすいキーワード形式で出力
+- 重要度順に並べる（金額・日付・支払先を優先）
+- 会計・税務の専門用語を使用
+- 数値情報は正確に抽出
+- Gemini 2.0の高精度認識を活用した詳細分析
+
+このレシート・領収書画像の内容をGemini 2.0 Flashの高度な画像解析能力で詳細に分析し、上記の観点でキーワードを抽出してください。
+`;
+      } else {
+        // デザイン事務所など他業種は従来通り
+        console.log('🏗️ デザイン事務所等の標準画像解析プロンプト使用');
+        return `
+あなたはGemini 2.0 Flashを使用した${industryConfig.name}検索システムです。この画像から検索用キーワードを抽出してください。
 
 ファイル名: ${fileName}
 画像形式: ${mimeType}
@@ -772,16 +835,69 @@ class DocumentProcessor {
 
 この画像の内容をGemini 2.0 Flashの高度な画像解析能力で詳細に分析し、上記の観点でキーワードを抽出してください。
 `;
+      }
+    } catch (error) {
+      console.error('❌ 業種設定取得エラー - デフォルト画像プロンプト使用:', error);
+      return `
+この画像から検索用キーワードを抽出してください。
+
+ファイル名: ${fileName}
+画像形式: ${mimeType}
+
+300文字以内で簡潔に、検索しやすいキーワード形式で出力してください。
+`;
+    }
   }
 
   /**
-   * PDFキーワード抽出用プロンプトを作成
+   * PDFキーワード抽出用プロンプトを作成（業種別対応）
    * @param {string} fileName ファイル名
    * @returns {string} プロンプト
    */
   static createPdfKeywordExtractionPrompt(fileName) {
-    return `
-あなたはGemini 2.0 Flashを使用したデザイン事務所検索システムです。このPDF文書から検索用キーワードを抽出してください。
+    console.log('🔍 PDFキーワード抽出プロンプト作成開始（業種別対応）');
+    
+    try {
+      // 現在の業種設定を取得
+      const industryConfig = ConfigManager.getIndustryConfig();
+      console.log(`📊 業種: ${industryConfig.name}`);
+      
+      if (industryConfig.name === '会計事務所') {
+        console.log('📊 会計事務所専用のPDF解析プロンプト使用');
+        return `
+あなたはGemini 2.0 Flashを使用した会計事務所検索システムです。このPDF形式のレシート・領収書・請求書から検索用キーワードを抽出してください。
+
+【Gemini 2.0 Flash最適化指示】
+- 高度な文書理解機能を活用し、PDF内容を詳細に解析してください
+- 会計・税務分野の専門知識を活用し、経理業務に必要な情報を正確に理解してください
+- 長文処理能力の向上を活用し、複数ページの文書も包括的に分析してください
+
+ファイル名: ${fileName}
+
+【抽出すべき項目（会計事務所特化）】
+1. 発行事業者名・店舗名（支払先の特定）
+2. 請求書・領収書番号（証憑管理用）
+3. 発行日・支払期限（取引日の特定）
+4. 金額詳細（小計、消費税8%・10%、合計金額）
+5. インボイス登録番号（適格請求書の確認）
+6. 摘要・商品・サービス内容（勘定科目判定用）
+7. 支払方法・振込先（決済情報）
+8. 事業者住所・連絡先（取引先情報）
+9. 割引・手数料・その他費用
+
+【出力形式】
+- 300文字以内で簡潔に
+- 検索しやすいキーワード形式
+- 重要度順に並べる（金額・日付・支払先を優先）
+- 会計・税務の専門用語を含める
+
+このPDF文書（レシート・領収書・請求書）の内容を解析し、上記の観点でキーワードを抽出してください。
+`;
+      } else {
+        // デザイン事務所など他業種は従来通り
+        console.log('🏗️ デザイン事務所等の標準PDF解析プロンプト使用');
+        return `
+あなたはGemini 2.0 Flashを使用した${industryConfig.name}検索システムです。このPDF文書から検索用キーワードを抽出してください。
 
 【Gemini 2.0 Flash最適化指示】
 - 高度な文書理解機能を活用し、PDF内容を詳細に解析してください
@@ -809,6 +925,17 @@ class DocumentProcessor {
 
 このPDF文書の内容を解析し、上記の観点でキーワードを抽出してください。
 `;
+      }
+    } catch (error) {
+      console.error('❌ 業種設定取得エラー - デフォルトPDFプロンプト使用:', error);
+      return `
+このPDF文書から検索用キーワードを抽出してください。
+
+ファイル名: ${fileName}
+
+300文字以内で簡潔に、検索しやすいキーワード形式で出力してください。
+`;
+    }
   }
 
   /**
@@ -818,14 +945,42 @@ class DocumentProcessor {
    * @returns {string} プロンプト
    */
   static createSummaryPrompt(fileName, extractedText) {
+    console.log('🔍 プロンプト作成開始');
+    
     try {
       // 現在の業種設定からAIプロンプトを取得
       const industryConfig = ConfigManager.getIndustryConfig();
       const industryPrompt = industryConfig.aiPrompt || 'あなたは文書解析の専門AIです。';
       
       console.log(`🤖 業種特化プロンプト使用: ${industryConfig.name}`);
+      console.log(`📝 基本プロンプト: ${industryPrompt.substring(0, 100)}...`);
       
-      return `
+      // 🆕 会計事務所の場合のみ特化処理
+      if (industryConfig.name === '会計事務所' && industryConfig.analysisFields) {
+        console.log('📊 会計事務所専用の重点解析項目を適用');
+        const specialFields = industryConfig.analysisFields.join('、');
+        console.log(`📋 重点項目: ${specialFields}`);
+        
+        const accountingPrompt = `
+${industryPrompt}
+
+【重点解析項目】以下の項目が記載されている場合は必ず抽出してください：
+${specialFields}
+
+以下のレシート・領収書情報から、上記の重点項目を含む重要なポイントを簡潔にまとめてください。
+
+ファイル名: ${fileName}
+抽出テキスト: ${extractedText}
+
+重点項目が含まれている場合は必ず記載し、400文字以内で簡潔に会計・税務の専門用語を使って検索しやすい形式でまとめてください。
+`;
+        console.log('✅ 会計事務所特化プロンプト生成完了');
+        return accountingPrompt;
+      }
+      
+      // デザイン事務所など他業種は従来通り（変更なし）
+      console.log('🏗️ デザイン事務所など他業種の標準プロンプト使用');
+      const standardPrompt = `
 ${industryPrompt}
 
 以下のドキュメント情報から、重要なポイントを簡潔にまとめてください。
@@ -835,11 +990,16 @@ ${industryPrompt}
 
 400文字以内で簡潔に、専門用語を使って検索しやすい形式でまとめてください。
 `;
+      console.log('✅ 標準プロンプト生成完了');
+      return standardPrompt;
+      
     } catch (error) {
       console.error('❌ 業種設定取得エラー - デフォルトプロンプト使用:', error);
+      console.error('❌ エラー詳細:', error.message);
+      console.error('❌ エラースタック:', error.stack);
       
-      // フォールバック: デフォルトプロンプト
-      return `
+      // フォールバック: デフォルトプロンプト（完全に既存と同じ）
+      const fallbackPrompt = `
 あなたは文書解析の専門AIです。
 以下のドキュメント情報から、重要なポイントを簡潔にまとめてください。
 
@@ -848,6 +1008,8 @@ ${industryPrompt}
 
 400文字以内で簡潔に、検索しやすい形式でまとめてください。
 `;
+      console.log('⚠️ フォールバックプロンプト使用');
+      return fallbackPrompt;
     }
   }
 
