@@ -1897,7 +1897,7 @@ function testImageGeminiProcessing() {
     console.log(`📊 ファイルサイズ: ${Utils.formatFileSize(testImageFile.getSize())}`);
     console.log(`🎨 画像形式: ${testImageFile.getBlob().getContentType()}`);
     
-    console.log('🔍 ステップ3: Gemini 1.5 Flash 画像解析実行');
+    console.log('🔍 ステップ3: Gemini 2.0 Flash 画像解析実行');
     const startTime = new Date();
     
     // Gemini 画像処理をテスト
@@ -1909,7 +1909,7 @@ function testImageGeminiProcessing() {
     console.log(`⏱️ 処理時間: ${processingTime}秒`);
     
     if (geminiResult && geminiResult.trim() !== '' && geminiResult !== '読み取れませんでした') {
-      console.log('✅ Gemini 1.5 Flash 画像解析成功');
+      console.log('✅ Gemini 2.0 Flash 画像解析成功');
       console.log(`📄 抽出キーワード文字数: ${geminiResult.length}文字`);
       console.log(`📝 キーワード内容: ${geminiResult.substring(0, 300)}...`);
       
@@ -1920,11 +1920,11 @@ function testImageGeminiProcessing() {
         processingTime: processingTime,
         extractedLength: geminiResult.length,
         keywords: geminiResult.substring(0, 300),
-        method: 'Gemini 1.5 Flash File API',
+        method: 'Gemini 2.0 Flash File API',
         isKeywordFocused: true
       };
     } else {
-      console.log('⚠️ Gemini 1.5 Flash 画像解析失敗');
+      console.log('⚠️ Gemini 2.0 Flash 画像解析失敗');
       
       // フォールバック処理もテスト（既存のextractTextFromImage）
       console.log('🔄 フォールバック処理テスト');
@@ -1940,12 +1940,12 @@ function testImageGeminiProcessing() {
         geminiProcessingTime: processingTime,
         fallbackProcessingTime: fallbackTime,
         fallbackResult: fallbackResult ? fallbackResult.substring(0, 300) : 'フォールバックも失敗',
-        error: 'Gemini 1.5 Flash 画像解析失敗、フォールバック実行'
+        error: 'Gemini 2.0 Flash 画像解析失敗、フォールバック実行'
       };
     }
     
   } catch (error) {
-    console.error('❌ Gemini 1.5 Flash 画像処理テストエラー:', error);
+    console.error('❌ Gemini 2.0 Flash 画像処理テストエラー:', error);
     return { 
       success: false, 
       error: error.message,
@@ -1989,7 +1989,7 @@ function testPdfGeminiProcessing() {
     console.log(`🎯 テスト対象: ${testPdfFile.getName()}`);
     console.log(`📊 ファイルサイズ: ${Utils.formatFileSize(testPdfFile.getSize())}`);
     
-    console.log('🔍 ステップ3: Gemini 1.5 Flash PDF解析実行');
+    console.log('🔍 ステップ3: Gemini 2.0 Flash PDF解析実行');
     const startTime = new Date();
     
     // Gemini PDF処理をテスト
@@ -2001,7 +2001,7 @@ function testPdfGeminiProcessing() {
     console.log(`⏱️ 処理時間: ${processingTime}秒`);
     
     if (geminiResult && geminiResult.trim() !== '' && geminiResult !== '読み取れませんでした') {
-      console.log('✅ Gemini 1.5 Flash PDF解析成功');
+      console.log('✅ Gemini 2.0 Flash PDF解析成功');
       console.log(`📄 抽出キーワード文字数: ${geminiResult.length}文字`);
       console.log(`📝 キーワード内容: ${geminiResult.substring(0, 300)}...`);
       
@@ -2011,11 +2011,11 @@ function testPdfGeminiProcessing() {
         processingTime: processingTime,
         extractedLength: geminiResult.length,
         keywords: geminiResult.substring(0, 300),
-        method: 'Gemini 1.5 Flash File API',
+        method: 'Gemini 2.0 Flash File API',
         isKeywordFocused: true
       };
     } else {
-      console.log('⚠️ Gemini 1.5 Flash PDF解析失敗');
+      console.log('⚠️ Gemini 2.0 Flash PDF解析失敗');
       
       // フォールバック処理もテスト（既存のextractTextFromPDF）
       console.log('🔄 フォールバック処理テスト');
@@ -2030,12 +2030,12 @@ function testPdfGeminiProcessing() {
         geminiProcessingTime: processingTime,
         fallbackProcessingTime: fallbackTime,
         fallbackResult: fallbackResult ? fallbackResult.substring(0, 300) : 'フォールバックも失敗',
-        error: 'Gemini 1.5 Flash PDF解析失敗、フォールバック実行'
+        error: 'Gemini 2.0 Flash PDF解析失敗、フォールバック実行'
       };
     }
     
   } catch (error) {
-    console.error('❌ Gemini 1.5 Flash PDF処理テストエラー:', error);
+    console.error('❌ Gemini 2.0 Flash PDF処理テストエラー:', error);
     return { 
       success: false, 
       error: error.message,
@@ -2115,8 +2115,8 @@ function testGemini2Migration() {
     ConfigManager.setGeminiModel('gemini-2.0-flash-exp');
     console.log('✅ Gemini 2.0設定:', ConfigManager.getGeminiModel());
     
-    // 1.5 Flashに戻すテスト
-    ConfigManager.setGeminiModel('gemini-1.5-flash');
+    // 2.0 Flashに戻すテスト
+    ConfigManager.setGeminiModel('gemini-2.0-flash');
     console.log('✅ Gemini 1.5設定:', ConfigManager.getGeminiModel());
     
     // 元の設定に戻す
@@ -2149,7 +2149,7 @@ function testGemini2Migration() {
 
 /**
  * Geminiモデル性能比較テスト
- * 1.5 Flash vs 2.0 Flash の比較
+ * 2.0 Flash vs 2.0 Flash の比較
  */
 function compareGeminiModels() {
   console.log('⚖️ ===== Geminiモデル性能比較テスト開始 =====');
@@ -2186,9 +2186,9 @@ function compareGeminiModels() {
       models: {}
     };
     
-    // Gemini 1.5 Flash テスト
-    console.log('\n📊 Gemini 1.5 Flash テスト...');
-    ConfigManager.setGeminiModel('gemini-1.5-flash');
+    // Gemini 2.0 Flash テスト
+    console.log('\n📊 Gemini 2.0 Flash テスト...');
+    ConfigManager.setGeminiModel('gemini-2.0-flash');
     const startTime1_5 = new Date();
     
     let result1_5;
@@ -2200,14 +2200,14 @@ function compareGeminiModels() {
       }
       const endTime1_5 = new Date();
       
-      results.models['gemini-1.5-flash'] = {
+      results.models['gemini-2.0-flash'] = {
         success: true,
         processingTime: (endTime1_5 - startTime1_5) / 1000,
         responseLength: result1_5 ? result1_5.length : 0,
         response: result1_5 ? result1_5.substring(0, 200) : '失敗'
       };
     } catch (error1_5) {
-      results.models['gemini-1.5-flash'] = {
+      results.models['gemini-2.0-flash'] = {
         success: false,
         error: error1_5.message
       };

@@ -345,13 +345,13 @@ class DocumentProcessor {
   }
 
   /**
-   * 画像読み込み (Gemini 1.5 Flash方式)
+   * 画像読み込み (Gemini 2.0 Flash方式)
    * @param {DriveApp.File} imageFile 画像ファイル
    * @param {string} geminiApiKey Gemini APIキー
    * @returns {string} 抽出されたキーワード情報
    */
   static extractTextFromImageViaGemini(imageFile, geminiApiKey) {
-    console.log('🤖 画像読み込み (Gemini 1.5 Flash方式) 開始...');
+    console.log('🤖 画像読み込み (Gemini 2.0 Flash方式) 開始...');
     
     const fileName = imageFile.getName();
     const fileId = imageFile.getId();
@@ -389,7 +389,7 @@ class DocumentProcessor {
       
       console.log(`✅ チャットセッション作成成功: ${chatSession.sessionId}`);
       
-      // Step 4: Gemini 1.5 Flashで画像解析実行
+      // Step 4: Gemini 2.0 Flashで画像解析実行
       console.log('🔍 Step 4: 画像解析実行...');
       const analysisResult = GeminiFileAPI.askQuestion(chatSession, imagePrompt);
       
@@ -418,13 +418,13 @@ class DocumentProcessor {
   }
 
   /**
-   * 画像からテキストを抽出 (Gemini 1.5 Flash専用版)
+   * 画像からテキストを抽出 (Gemini 2.0 Flash専用版)
    * @param {DriveApp.File} file 画像ファイル
    * @param {string} apiKey Vision APIキー（使用されません）
    * @returns {string} 抽出されたテキスト
    */
   static extractTextFromImage(file, apiKey) {
-    console.log('📸 画像処理を開始します... (Gemini 1.5 Flash専用版)');
+    console.log('📸 画像処理を開始します... (Gemini 2.0 Flash専用版)');
     
     const fileName = file.getName();
     const fileSize = file.getSize();
@@ -435,8 +435,8 @@ class DocumentProcessor {
     console.log(`   サイズ: ${Utils.formatFileSize(fileSize)}`);
     console.log(`   形式: ${mimeType}`);
     
-    // Gemini 1.5 Flash処理のみ実行
-    console.log('🤖 Gemini 1.5 Flash処理開始...');
+    // Gemini 2.0 Flash処理のみ実行
+    console.log('🤖 Gemini 2.0 Flash処理開始...');
     
     try {
       const config = ConfigManager.getConfig();
@@ -447,15 +447,15 @@ class DocumentProcessor {
       const geminiResult = this.extractTextFromImageViaGemini(file, config.geminiApiKey);
       
       if (geminiResult && geminiResult.trim() !== '' && geminiResult !== '読み取れませんでした') {
-        console.log('✅ Gemini 1.5 Flash処理成功');
+        console.log('✅ Gemini 2.0 Flash処理成功');
         console.log(`📝 キーワード抽出結果: ${geminiResult.length}文字`);
         return geminiResult;
       } else {
-        throw new Error('Gemini 1.5 Flash処理で有効な結果が得られませんでした');
+        throw new Error('Gemini 2.0 Flash処理で有効な結果が得られませんでした');
       }
       
     } catch (geminiError) {
-      console.log('⚠️ Gemini 1.5 Flash処理エラー:', geminiError.message);
+      console.log('⚠️ Gemini 2.0 Flash処理エラー:', geminiError.message);
       
       // 最終フォールバック - ファイル名ベース情報生成
       console.log('📝 最終フォールバック: ファイル名ベース情報生成');
@@ -464,13 +464,13 @@ class DocumentProcessor {
   }
 
   /**
-   * PDF読み込み (Gemini 1.5 Flash方式)
+   * PDF読み込み (Gemini 2.0 Flash方式)
    * @param {DriveApp.File} pdfFile PDFファイル
    * @param {string} geminiApiKey Gemini APIキー
    * @returns {string} 抽出されたキーワード情報
    */
   static extractTextFromPdfViaGemini(pdfFile, geminiApiKey) {
-    console.log('🤖 PDF読み込み (Gemini 1.5 Flash方式) 開始...');
+    console.log('🤖 PDF読み込み (Gemini 2.0 Flash方式) 開始...');
     
     const fileName = pdfFile.getName();
     const fileId = pdfFile.getId();
@@ -507,7 +507,7 @@ class DocumentProcessor {
       
       console.log(`✅ チャットセッション作成成功: ${chatSession.sessionId}`);
       
-      // Step 4: Gemini 1.5 FlashでPDF解析実行
+      // Step 4: Gemini 2.0 FlashでPDF解析実行
       console.log('🔍 Step 4: PDF解析実行...');
       const analysisResult = GeminiFileAPI.askQuestion(chatSession, keywordPrompt);
       
@@ -538,13 +538,13 @@ class DocumentProcessor {
 
 
   /**
-   * PDFからテキストを抽出 (Gemini 1.5 Flash専用版)
+   * PDFからテキストを抽出 (Gemini 2.0 Flash専用版)
    * @param {DriveApp.File} file PDFファイル
    * @param {string} apiKey Vision APIキー（使用されません）
    * @returns {string} 抽出されたテキスト
    */
   static extractTextFromPDF(file, apiKey) {
-    console.log('📄 PDF処理を開始します... (Gemini 1.5 Flash専用版)');
+    console.log('📄 PDF処理を開始します... (Gemini 2.0 Flash専用版)');
     
     const fileName = file.getName();
     const fileSize = file.getSize();
@@ -555,8 +555,8 @@ class DocumentProcessor {
     console.log(`   サイズ: ${Utils.formatFileSize(fileSize)}`);
     console.log(`   更新日: ${lastModified.toLocaleDateString()}`);
     
-    // Gemini 1.5 Flash処理のみ実行
-    console.log('🤖 Gemini 1.5 Flash処理開始...');
+    // Gemini 2.0 Flash処理のみ実行
+    console.log('🤖 Gemini 2.0 Flash処理開始...');
     
     try {
       const config = ConfigManager.getConfig();
@@ -567,15 +567,15 @@ class DocumentProcessor {
       const geminiResult = this.extractTextFromPdfViaGemini(file, config.geminiApiKey);
       
       if (geminiResult && geminiResult.trim() !== '' && geminiResult !== '読み取れませんでした') {
-        console.log('✅ Gemini 1.5 Flash処理成功');
+        console.log('✅ Gemini 2.0 Flash処理成功');
         console.log(`📝 キーワード抽出結果: ${geminiResult.length}文字`);
         return geminiResult;
       } else {
-        throw new Error('Gemini 1.5 Flash処理で有効な結果が得られませんでした');
+        throw new Error('Gemini 2.0 Flash処理で有効な結果が得られませんでした');
       }
       
     } catch (geminiError) {
-      console.log('⚠️ Gemini 1.5 Flash処理エラー:', geminiError.message);
+      console.log('⚠️ Gemini 2.0 Flash処理エラー:', geminiError.message);
       
       // 最終フォールバック - ファイル名ベース情報生成
       console.log('📝 最終フォールバック: ファイル名ベース情報生成');

@@ -217,14 +217,15 @@ class ConfigManager {
     }
     
     // デフォルトはGemini 2.5 Flash（AI解析との統一）
-    const defaultModel = 'gemini-2.5-flash';
+    //const defaultModel = 'gemini-2.5-flash';
+    const defaultModel = 'gemini-2.0-flash';
     console.log(`🤖 デフォルトGeminiモデル: ${defaultModel}`);
     return defaultModel;
   }
 
   /**
    * Geminiモデル設定
-   * @param {string} modelName モデル名 (gemini-2.5-flash, gemini-2.0-flash-exp, gemini-1.5-flash等)
+   * @param {string} modelName モデル名 (gemini-2.5-flash, gemini-2.0-flash-exp, gemini-2.0-flash等)
    */
   static setGeminiModel(modelName) {
     const properties = PropertiesService.getScriptProperties();
