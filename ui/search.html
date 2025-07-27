@@ -1128,9 +1128,9 @@
     }
 
     // システム状態更新
-    async function updateSystemStatus() {
+    function updateSystemStatus() {
       try {
-        const info = await google.script.run
+        google.script.run
           .withSuccessHandler(updateStatusDisplay)
           .withFailureHandler(handleError)
           .getSystemInfo();
@@ -1151,7 +1151,7 @@
     }
 
     // 検索機能
-    async function performSearch() {
+    function performSearch() {
       const query = document.getElementById('searchInput').value.trim();
       
       if (isSearching) {
@@ -1172,15 +1172,26 @@
         document.getElementById('results').innerHTML = '<div class="loading">検索中です...</div>';
         
         // 検索実行
-        const results = await google.script.run
-          .withSuccessHandler(displaySearchResults)
-          .withFailureHandler(handleSearchError)
+        google.script.run
+          .withSuccessHandler(function(results) {
+            displaySearchResults(results);
+            // UI復元
+            searchBtn.disabled = false;
+            searchBtn.textContent = originalText;
+            isSearching = false;
+          })
+          .withFailureHandler(function(error) {
+            handleSearchError(error);
+            // UI復元
+            searchBtn.disabled = false;
+            searchBtn.textContent = originalText;
+            isSearching = false;
+          })
           .searchDocuments(query);
           
       } catch (error) {
         console.error('検索エラー:', error);
         handleSearchError(error);
-      } finally {
         // UI復元
         searchBtn.disabled = false;
         searchBtn.textContent = originalText;
@@ -1273,12 +1284,12 @@
     }
 
     // 管理機能
-    async function analyzeNewDocuments() {
+    function analyzeNewDocuments() {
       if (confirm('新規ドキュメント解析を実行しますか？\n※ 処理に時間がかかる場合があります')) {
         try {
           showLoadingStatus('📊 新規ドキュメント解析中...');
           
-          const result = await google.script.run
+          google.script.run
             .withSuccessHandler(handleAnalysisResult)
             .withFailureHandler(handleError)
             .analyzeDocuments();
@@ -1300,7 +1311,7 @@
       }
     }
 
-    async function showAllDocuments() {
+    function showAllDocuments() {
       try {
         google.script.run
           .withSuccessHandler(function(result) {
@@ -1321,11 +1332,11 @@
       }
     }
 
-    async function testGeminiConnection() {
+    function testGeminiConnection() {
       try {
         showLoadingStatus('🤖 Gemini接続テスト中...');
         
-        await google.script.run
+        google.script.run
           .withSuccessHandler(() => {
             hideLoadingStatus();
             alert('✅ Gemini接続テスト成功');
@@ -1342,12 +1353,12 @@
       }
     }
 
-    async function runDebugTests() {
+    function runDebugTests() {
       if (confirm('詳細デバッグテストを実行しますか？\n※ コンソールログを確認してください')) {
         try {
           showLoadingStatus('🔧 デバッグテスト実行中...');
           
-          await google.script.run
+          google.script.run
             .withSuccessHandler(() => {
               hideLoadingStatus();
               alert('✅ デバッグテスト完了\nコンソールログを確認してください');
@@ -1827,7 +1838,11 @@
     }
 
     function hideLoadingStatus() {
-      // 何もしない（次の処理で上書きされる）
+      // ローディング表示を隠す
+      const resultsDiv = document.getElementById('results');
+      if (resultsDiv && resultsDiv.innerHTML.includes('loading')) {
+        resultsDiv.innerHTML = '';
+      }
     }
 
     function handleError(error) {
@@ -2058,7 +2073,7 @@
     }
 
     // AI質問処理
-    async function askAnalysisQuestion() {
+    function askAnalysisQuestion() {
       const questionInput = document.getElementById('analysisQuestionInput');
       const question = questionInput.value.trim();
       
