@@ -2647,3 +2647,117 @@ function validateCustomPrompt(prompt) {
     return { isValid: false, error: error.message };
   }
 }
+
+// ===== 業種モード切り替え機能 =====
+
+/**
+ * 業種設定と設定取得（UI用）
+ * @param {string} industryType 業種タイプ
+ * @returns {Object} 設定結果
+ */
+function setIndustryAndGetConfig(industryType) {
+  console.log(`🔄 ===== 業種切り替え: ${industryType} =====`);
+  
+  try {
+    if (!industryType || typeof industryType !== 'string') {
+      throw new Error('有効な業種タイプを指定してください');
+    }
+    
+    console.log(`📋 切り替え対象: ${industryType}`);
+    const result = ConfigManager.setIndustry(industryType);
+    
+    console.log(`✅ 切り替え成功: ${result.name}`);
+    console.log(`🎨 カラーテーマ: ${result.colors.primary}`);
+    console.log(`🔍 検索例: [${result.searchExamples.join(', ')}]`);
+    
+    return {
+      success: true,
+      config: result,
+      message: `${result.name}モードに切り替えました`
+    };
+    
+  } catch (error) {
+    console.error('❌ 業種切り替えエラー:', error);
+    console.error('❌ エラー詳細:', error.message);
+    
+    return {
+      success: false,
+      error: error.message,
+      config: null
+    };
+  }
+}
+
+/**
+ * 現在の業種設定取得（UI用）
+ * @returns {Object} 現在の業種設定
+ */
+function getCurrentIndustryConfig() {
+  console.log('📊 ===== 現在の業種設定取得 =====');
+  
+  try {
+    const config = ConfigManager.getIndustryConfig();
+    
+    console.log(`📋 現在の業種: ${config.name}`);
+    console.log(`🎨 システムタイトル: ${config.systemTitle}`);
+    console.log(`🔍 検索例数: ${config.searchExamples ? config.searchExamples.length : 0}個`);
+    
+    return config;
+    
+  } catch (error) {
+    console.error('❌ 業種設定取得エラー:', error);
+    console.log('🔄 フォールバック: デフォルト設定を使用');
+    
+    // フォールバック処理
+    try {
+      return ConfigManager.getIndustryConfig();
+    } catch (fallbackError) {
+      console.error('❌ フォールバックも失敗:', fallbackError);
+      
+      // 最終フォールバック
+      return {
+        name: 'デザイン事務所',
+        systemTitle: '🏗️ デザイン事務所ドキュメント検索システム',
+        searchExamples: ['設計', '平面図', 'カフェ'],
+        placeholder: '例: 設計, 平面図, カフェ設計...',
+        colors: {
+          primary: '#8B9A5B',
+          light: '#A8B373',
+          pale: '#C5D197',
+          cream: '#F5F7F0',
+          dark: '#6B7A47',
+          accent: '#9CAD6B'
+        }
+      };
+    }
+  }
+}
+
+/**
+ * 利用可能業種一覧取得（UI用）
+ * @returns {Array} 業種一覧
+ */
+function getAvailableIndustries() {
+  console.log('📋 ===== 利用可能業種一覧取得 =====');
+  
+  try {
+    const industries = ConfigManager.getAvailableIndustries();
+    
+    console.log(`📊 対応業種数: ${industries.length}種類`);
+    industries.forEach((industry, index) => {
+      console.log(`   ${index + 1}. ${industry.name} (${industry.key})`);
+    });
+    
+    return industries;
+    
+  } catch (error) {
+    console.error('❌ 業種一覧取得エラー:', error);
+    
+    // フォールバック: 固定の業種一覧
+    return [
+      { key: 'design_office', name: 'デザイン事務所', title: '🏗️ デザイン事務所ドキュメント検索システム' },
+      { key: 'accounting_office', name: '会計事務所', title: '📊 会計事務所ドキュメント検索システム' },
+      { key: 'photographer', name: '写真家', title: '📸 写真家・イラストレーター検索システム' }
+    ];
+  }
+}

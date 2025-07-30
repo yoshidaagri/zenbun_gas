@@ -34,6 +34,28 @@
       line-height: 1.6;
     }
     
+    /* 🆕 写真家モード用カラーパレット */
+    :root.photographer-mode {
+      --primary-khaki: #6B46C1;
+      --light-khaki: #8B5CF6;
+      --pale-khaki: #C4B5FD;
+      --cream-khaki: #F3F0FF;
+      --dark-khaki: #553C9A;
+      --accent-khaki: #7C3AED;
+      --shadow-khaki: rgba(107, 70, 193, 0.2);
+    }
+    
+    /* 🆕 会計事務所モード用カラーパレット */
+    :root.accounting_office-mode {
+      --primary-khaki: #2E7D32;
+      --light-khaki: #4CAF50;
+      --pale-khaki: #A5D6A7;
+      --cream-khaki: #E8F5E8;
+      --dark-khaki: #1B5E20;
+      --accent-khaki: #66BB6A;
+      --shadow-khaki: rgba(46, 125, 50, 0.2);
+    }
+    
     .header {
       text-align: center;
       background: white;
@@ -92,6 +114,39 @@
       border-radius: 16px;
       box-shadow: 0 4px 20px var(--shadow-khaki);
       margin-bottom: 24px;
+    }
+    
+    /* 🆕 モード選択スタイル */
+    .mode-selector {
+      text-align: center;
+      margin-bottom: 20px;
+      padding: 16px;
+      background: var(--cream-khaki);
+      border-radius: 8px;
+      border: 1px solid var(--pale-khaki);
+    }
+    
+    .mode-selector h3 {
+      margin: 0 0 12px 0;
+      color: var(--dark-khaki);
+      font-size: clamp(14px, 3vw, 16px);
+    }
+    
+    #industrySelect {
+      padding: 8px 16px;
+      border: 2px solid var(--pale-khaki);
+      border-radius: 8px;
+      font-size: 14px;
+      background: white;
+      min-width: 250px;
+      color: var(--dark-khaki);
+      transition: all 0.3s ease;
+    }
+    
+    #industrySelect:focus {
+      outline: none;
+      border-color: var(--primary-khaki);
+      box-shadow: 0 0 0 4px var(--shadow-khaki);
     }
     
     .search-header {
@@ -852,7 +907,6 @@
   <div class="header">
     <h1>🏗️ デザイン事務所ドキュメント検索システム</h1>
     <p>googledriveのドキュメントをAIが要約して検索可能にします</p>
-    <p>「A案件の図面」のような曖昧な依頼にもAIが対応します</p>
     
     <div class="workflow">
       <span class="workflow-step">📁 Google Drive</span>
@@ -862,6 +916,16 @@
   </div>
 
   <div class="search-container">
+    <!-- 🆕 業種選択セクション -->
+    <div class="mode-selector">
+      <h3>業種選択</h3>
+      <select id="industrySelect" onchange="switchIndustryMode()">
+        <option value="design_office">🏗️ デザイン事務所</option>
+        <option value="accounting_office">📊 会計事務所</option>
+        <option value="photographer">📸 写真家・イラストレーター</option>
+      </select>
+    </div>
+    
     <div class="search-header">
       <h2>🔍 ドキュメント検索</h2>
       <p>ファイル名、内容、AI要約から横断検索できます</p>
@@ -2299,6 +2363,148 @@
       }
     }
 
+    // ===== 業種モード切り替え機能 =====
+
+    /**
+     * 業種モード切り替え
+     */
+    function switchIndustryMode() {
+      const selectedMode = document.getElementById('industrySelect').value;
+      
+      showStatus(`🔄 ${getIndustryDisplayName(selectedMode)}モードに切り替え中...`, 'info');
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            // テーマ適用
+            applyIndustryTheme(selectedMode, result.config);
+            
+            // UI更新
+            updateUIForMode(result.config);
+            
+            showStatus(`✅ ${result.config.name}モードに切り替えました`, 'success');
+          } else {
+            showStatus(`❌ 切り替えエラー: ${result.error}`, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showStatus(`❌ 切り替えエラー: ${error.message}`, 'error');
+        })
+        .setIndustryAndGetConfig(selectedMode);
+    }
+
+    /**
+     * 業種表示名取得
+     */
+    function getIndustryDisplayName(mode) {
+      const names = {
+        'design_office': 'デザイン事務所',
+        'accounting_office': '会計事務所',
+        'photographer': '写真家・イラストレーター'
+      };
+      return names[mode] || mode;
+    }
+
+    /**
+     * 業種テーマ適用
+     */
+    function applyIndustryTheme(mode, config) {
+      // ルート要素のクラス更新
+      document.documentElement.className = mode + '-mode';
+      
+      // カラーテーマ動的適用
+      const root = document.documentElement;
+      if (config.colors) {
+        Object.entries(config.colors).forEach(([key, value]) => {
+          const cssVar = key === 'primary' ? '--primary-khaki' :
+                         key === 'light' ? '--light-khaki' :
+                         key === 'pale' ? '--pale-khaki' :
+                         key === 'cream' ? '--cream-khaki' :
+                         key === 'dark' ? '--dark-khaki' :
+                         key === 'accent' ? '--accent-khaki' : null;
+          if (cssVar) {
+            root.style.setProperty(cssVar, value);
+            
+            // シャドウカラーも更新
+            if (key === 'primary') {
+              const hex = value.replace('#', '');
+              const r = parseInt(hex.substr(0, 2), 16);
+              const g = parseInt(hex.substr(2, 2), 16);
+              const b = parseInt(hex.substr(4, 2), 16);
+              root.style.setProperty('--shadow-khaki', `rgba(${r}, ${g}, ${b}, 0.2)`);
+            }
+          }
+        });
+      }
+    }
+
+    /**
+     * UI要素更新
+     */
+    function updateUIForMode(config) {
+      // タイトル更新
+      const headerTitle = document.querySelector('.header h1');
+      if (headerTitle && config.systemTitle) {
+        headerTitle.textContent = config.systemTitle;
+      }
+      
+      // プレースホルダー更新
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput && config.placeholder) {
+        searchInput.placeholder = config.placeholder;
+      }
+      
+      // 検索例更新
+      const examplesContainer = document.querySelector('.example-tags');
+      if (examplesContainer && config.searchExamples) {
+        examplesContainer.innerHTML = '';
+        config.searchExamples.forEach(example => {
+          const tag = document.createElement('span');
+          tag.className = 'example-tag';
+          tag.textContent = example;
+          tag.onclick = () => searchExample(example);
+          examplesContainer.appendChild(tag);
+        });
+      }
+    }
+
+    /**
+     * 現在の業種設定読み込み
+     */
+    function loadCurrentIndustryMode() {
+      google.script.run
+        .withSuccessHandler(function(config) {
+          if (config) {
+            // モード選択を現在の設定に合わせる
+            const industrySelect = document.getElementById('industrySelect');
+            if (industrySelect) {
+              const industryKey = getIndustryKeyFromName(config.name);
+              industrySelect.value = industryKey;
+              applyIndustryTheme(industryKey, config);
+              updateUIForMode(config);
+            }
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.warn('業種設定読み込みエラー:', error);
+          // デフォルトでdesign_officeを設定
+          document.getElementById('industrySelect').value = 'design_office';
+        })
+        .getCurrentIndustryConfig();
+    }
+
+    /**
+     * 業種名からキー取得
+     */
+    function getIndustryKeyFromName(name) {
+      const keyMap = {
+        'デザイン事務所': 'design_office',
+        '会計事務所': 'accounting_office',
+        '写真家': 'photographer'
+      };
+      return keyMap[name] || 'design_office';
+    }
+
     // ===== カスタムプロンプト管理機能 =====
 
     /**
@@ -2484,6 +2690,12 @@
         })
         .clearCustomPrompt();
     }
+
+    // 🆕 ページ読み込み時の初期化
+    window.addEventListener('load', function() {
+      console.log('ページ読み込み完了 - 業種設定を読み込み中...');
+      setTimeout(loadCurrentIndustryMode, 500); // 少し遅延させて確実に実行
+    });
 
     // キーボードショートカット
     document.addEventListener('keydown', function(e) {
