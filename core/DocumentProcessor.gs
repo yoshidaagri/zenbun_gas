@@ -1041,30 +1041,52 @@ class DocumentProcessor {
   }
 
   /**
-   * AI要約用プロンプトを作成
+   * AI要約用プロンプトを作成（カスタムプロンプト対応）
    * @param {string} fileName ファイル名
    * @param {string} extractedText 抽出テキスト
    * @returns {string} プロンプト
    */
   static createSummaryPrompt(fileName, extractedText) {
-    console.log('🔍 プロンプト作成開始');
+    console.log('🔍 プロンプト作成開始（カスタムプロンプト対応）');
     
     try {
-      // 現在の業種設定からAIプロンプトを取得
-      const industryConfig = ConfigManager.getIndustryConfig();
-      const industryPrompt = industryConfig.aiPrompt || 'あなたは文書解析の専門AIです。';
+      // カスタムプロンプトチェック
+      const config = ConfigManager.getConfig();
+      const customPromptInfo = CustomPromptManager.getCustomPrompt(config.spreadsheetId);
       
-      console.log(`🤖 業種特化プロンプト使用: ${industryConfig.name}`);
-      console.log(`📝 基本プロンプト: ${industryPrompt.substring(0, 100)}...`);
+      console.log(`📋 プロンプト判定: ${customPromptInfo.source}`);
+      console.log(`📝 メッセージ: ${customPromptInfo.message}`);
       
-      // 🆕 会計事務所の場合のみ特化処理
-      if (industryConfig.name === '会計事務所' && industryConfig.analysisFields) {
+      let basePrompt;
+      let promptSource;
+      
+      if (customPromptInfo.hasCustom) {
+        // カスタムプロンプト使用
+        basePrompt = customPromptInfo.prompt;
+        promptSource = `カスタム (${customPromptInfo.length}文字)`;
+        console.log('✅ カスタムプロンプト適用');
+        console.log(`📝 内容: ${customPromptInfo.preview}...`);
+        
+      } else {
+        // デフォルトプロンプト使用
+        const industryConfig = ConfigManager.getIndustryConfig();
+        basePrompt = industryConfig.aiPrompt || 'あなたは文書解析の専門AIです。';
+        promptSource = `デフォルト (${industryConfig.name})`;
+        console.log(`🏢 業種別デフォルトプロンプト適用: ${industryConfig.name}`);
+        console.log(`📝 基本プロンプト: ${basePrompt.substring(0, 100)}...`);
+      }
+      
+      // 🆕 会計事務所の場合のみ特化処理（カスタムプロンプト使用時は適用しない）
+      if (!customPromptInfo.hasCustom && 
+          ConfigManager.getIndustryConfig().name === '会計事務所' && 
+          ConfigManager.getIndustryConfig().analysisFields) {
+        
         console.log('📊 会計事務所専用の重点解析項目を適用');
-        const specialFields = industryConfig.analysisFields.join('、');
+        const specialFields = ConfigManager.getIndustryConfig().analysisFields.join('、');
         console.log(`📋 重点項目: ${specialFields}`);
         
         const accountingPrompt = `
-${industryPrompt}
+${basePrompt}
 
 【重点解析項目】以下の項目が記載されている場合は必ず抽出してください：
 ${specialFields}
@@ -1077,23 +1099,26 @@ ${specialFields}
 重点項目が含まれている場合は必ず記載し、400文字以内で簡潔に会計・税務の専門用語を使って検索しやすい形式でまとめてください。
 `;
         console.log('✅ 会計事務所特化プロンプト生成完了');
+        console.log(`📊 プロンプト種別: ${promptSource} + 会計特化`);
         return accountingPrompt;
       }
       
-      // デザイン事務所など他業種は従来通り（変更なし）
-      console.log('🏗️ デザイン事務所など他業種の標準プロンプト使用');
-      const standardPrompt = `
-${industryPrompt}
+      // カスタムプロンプトまたは他業種の標準処理
+      const finalPrompt = `
+${basePrompt}
 
 以下のドキュメント情報から、重要なポイントを簡潔にまとめてください。
 
 ファイル名: ${fileName}
 抽出テキスト: ${extractedText}
 
-400文字以内で簡潔に、専門用語を使って検索しやすい形式でまとめてください。
+上記の情報を元に、検索しやすい形式で重要な内容を要約してください。
 `;
-      console.log('✅ 標準プロンプト生成完了');
-      return standardPrompt;
+      
+      console.log(`✅ プロンプト生成完了 - 種別: ${promptSource}`);
+      console.log(`📏 最終プロンプト長: ${finalPrompt.length}文字`);
+      
+      return finalPrompt;
       
     } catch (error) {
       console.error('❌ 業種設定取得エラー - デフォルトプロンプト使用:', error);

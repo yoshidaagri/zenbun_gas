@@ -60,6 +60,14 @@ SearchEngine.gs, AnalysisManager.gs, index.html
 - **簡潔レスポンス**: チャットボット形式で400文字以内の要点を絞った回答
 - **全画面ローディング**: 処理中の分かりやすい視覚的フィードバック
 
+#### 📝 **カスタムプロンプト機能** ⭐ **NEW**
+- **柔軟なプロンプト設定**: スプレッドシート「custom」シートでプロンプトをカスタマイズ
+- **業種特化から自由設定**: デフォルトの業種別設定を独自仕様で上書き可能
+- **リアルタイム適用**: A1セルの内容変更で即座にプロンプトが切り替わり
+- **安全なフォールバック**: カスタム設定に問題があればデフォルトを自動使用
+- **プロンプト検証**: 設定内容の品質チェックと改善提案機能
+- **視覚的管理**: 状況確認・テスト・編集・リセットをUI上で完結
+
 #### 📊 **管理・運用機能**
 - **リアルタイム処理**: 新しいドキュメントを自動で解析・検索対象に追加
 - **包括的デバッグ**: システム設定確認、データ構造修正、通信テスト
@@ -495,13 +503,14 @@ zenbun_gas/
    1. Config.gs          ← shared/Config.gs をコピー
    2. Utils.gs           ← shared/Utils.gs をコピー  
    3. ErrorHandler.gs    ← shared/ErrorHandler.gs をコピー
-   4. DatabaseManager.gs ← core/DatabaseManager.gs をコピー
-   5. DocumentProcessor.gs ← core/DocumentProcessor.gs をコピー
-   6. SearchEngine.gs    ← core/SearchEngine.gs をコピー
-   7. GeminiFileAPI.gs   ← analysis/GeminiFileAPI.gs をコピー
-   8. AnalysisManager.gs ← analysis/AnalysisManager.gs をコピー
-   9. Code.gs (既存を置き換え) ← main/Code.gs をコピー
-   10. index.html        ← ui/search.html をコピー
+   4. CustomPromptManager.gs ← shared/CustomPromptManager.gs をコピー ⭐ NEW
+   5. DatabaseManager.gs ← core/DatabaseManager.gs をコピー
+   6. DocumentProcessor.gs ← core/DocumentProcessor.gs をコピー
+   7. SearchEngine.gs    ← core/SearchEngine.gs をコピー
+   8. GeminiFileAPI.gs   ← analysis/GeminiFileAPI.gs をコピー
+   9. AnalysisManager.gs ← analysis/AnalysisManager.gs をコピー
+   10. Code.gs (既存を置き換え) ← main/Code.gs をコピー
+   11. index.html        ← ui/search.html をコピー
    ```
 
 ### 2. APIキーの取得
@@ -600,6 +609,34 @@ ConfigManager.checkSetup();
 - **🤖 AI接続テスト**: Gemini API動作確認
 - **🔧 システム設定確認**: API・ID設定状況チェック
 - **📊 データ確認**: スプレッドシート内容確認
+
+### カスタムプロンプト機能 ⭐ **NEW**
+
+#### **設定方法**
+1. **管理機能から「📝 カスタムプロンプト状況」**で現在の設定を確認
+2. **「✏️ カスタムプロンプト編集」**でスプレッドシートを開く
+3. **「custom」シートのA1セル**にカスタムプロンプトを入力
+4. **「🧪 カスタムプロンプトテスト」**で動作確認
+
+#### **プロンプト作成例**
+```
+あなたは建築設計専門のAIです。以下の図面・設計書を解析し、
+特に【構造】【材料】【寸法】【設備】に注目して、
+400文字以内で検索しやすい形式で要約してください。
+
+重要な数値や仕様は必ず記載し、専門用語を使用してください。
+```
+
+#### **活用シーン**
+- **特定プロジェクト**: 「○○プロジェクト専用の解析項目に特化」
+- **クライアント要望**: 「○○様向けの重点ポイントを強調」
+- **業務特化**: 「見積書なら金額、図面なら寸法を重視」
+- **言語調整**: 「より丁寧な敬語」「専門用語を簡潔に」
+
+#### **注意事項**
+- A1セルを**空**にするとデフォルトプロンプト（業種別）に戻る
+- プロンプトの変更は**次回の新規ドキュメント解析から**適用
+- 不適切なプロンプトは自動でデフォルトにフォールバック
 
 ## 🔧 システム設定
 

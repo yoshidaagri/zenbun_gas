@@ -966,6 +966,10 @@
       <button class="mgmt-btn" onclick="testAnalysisManagerDetails()">🔍 AnalysisManager詳細テスト</button>
       <button class="mgmt-btn" onclick="testCreateAnalysisSessionUnit()">⚙️ セッション作成単体テスト</button>
       <button class="mgmt-btn" onclick="checkSystemHealth()">🩺 システム健全性チェック</button>
+      <button class="mgmt-btn" onclick="checkCustomPromptStatus()">📝 カスタムプロンプト状況</button>
+      <button class="mgmt-btn" onclick="testCustomPrompt()">🧪 カスタムプロンプトテスト</button>
+      <button class="mgmt-btn" onclick="openCustomSheet()">✏️ カスタムプロンプト編集</button>
+      <button class="mgmt-btn" onclick="clearCustomPrompt()">🗑️ プロンプトリセット</button>
     </div>
 
     <div class="status-display" id="systemStatus">
@@ -2293,6 +2297,192 @@
         loadingProgress.textContent = progress;
         console.log('📊 ローディング進捗更新:', progress);
       }
+    }
+
+    // ===== カスタムプロンプト管理機能 =====
+
+    /**
+     * カスタムプロンプト状況確認
+     */
+    function checkCustomPromptStatus() {
+      showStatus('📝 カスタムプロンプト状況を確認中...', 'info');
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.error) {
+            showStatus(`❌ エラー: ${result.error}`, 'error');
+            return;
+          }
+          
+          const usingType = result.currentlyUsing === 'custom' ? 'カスタム' : 'デフォルト';
+          const statusHtml = `
+            <div class="prompt-status" style="margin: 20px 0; padding: 20px; border: 2px solid var(--primary-khaki); border-radius: 8px; background: var(--cream-khaki);">
+              <h4>📊 プロンプト設定状況</h4>
+              <div style="margin: 10px 0;">
+                <strong>現在使用中:</strong> ${usingType}プロンプト
+              </div>
+              <div style="margin: 10px 0;">
+                <strong>推奨事項:</strong> ${result.recommendation}
+              </div>
+              ${result.custom.hasCustom ? 
+                `<div style="margin: 10px 0;">
+                   <strong>カスタム内容:</strong> ${result.custom.length}文字<br>
+                   <small style="color: #666; font-style: italic;">${result.custom.preview}...</small>
+                 </div>` : 
+                `<div style="margin: 10px 0;">
+                   <strong>カスタム状況:</strong> ${result.custom.message}
+                 </div>`
+              }
+              <div style="margin: 10px 0;">
+                <strong>デフォルト:</strong> ${result.default.industry} (${result.default.length}文字)
+              </div>
+            </div>
+          `;
+          
+          document.getElementById('results').innerHTML = statusHtml;
+          document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+          
+          showStatus(`✅ プロンプト状況確認完了 - ${usingType}プロンプト使用中`, 'success');
+        })
+        .withFailureHandler(function(error) {
+          showStatus(`❌ プロンプト状況確認エラー: ${error.message}`, 'error');
+        })
+        .checkCustomPromptStatus();
+    }
+
+    /**
+     * カスタムプロンプトテスト
+     */
+    function testCustomPrompt() {
+      showStatus('🧪 カスタムプロンプトをテスト中...', 'info');
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (!result.success) {
+            showStatus(`❌ テストエラー: ${result.error}`, 'error');
+            return;
+          }
+          
+          const testHtml = `
+            <div class="prompt-test-result" style="margin: 20px 0; padding: 20px; border: 2px solid var(--accent-khaki); border-radius: 8px; background: #f8f9fa;">
+              <h4>🧪 プロンプトテスト結果</h4>
+              <div style="margin: 10px 0;">
+                <strong>使用プロンプト:</strong> ${result.testPrompt.usingCustom ? 'カスタム' : 'デフォルト'}
+              </div>
+              <div style="margin: 10px 0;">
+                <strong>プロンプト長:</strong> ${result.testPrompt.length}文字
+              </div>
+              <div style="margin: 10px 0;">
+                <strong>生成内容（抜粋）:</strong><br>
+                <pre style="background: #f0f0f0; padding: 10px; border-radius: 4px; white-space: pre-wrap; font-size: 12px; max-height: 200px; overflow-y: auto;">${result.testPrompt.preview}</pre>
+              </div>
+              <div style="margin: 10px 0;">
+                <strong>判定:</strong> <span style="color: ${result.testPrompt.usingCustom ? 'var(--primary-khaki)' : 'var(--dark-khaki)'};">${result.message}</span>
+              </div>
+            </div>
+          `;
+          
+          document.getElementById('results').innerHTML = testHtml;
+          document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+          
+          showStatus(`✅ ${result.message}`, 'success');
+        })
+        .withFailureHandler(function(error) {
+          showStatus(`❌ プロンプトテストエラー: ${error.message}`, 'error');
+        })
+        .testCustomPrompt();
+    }
+
+    /**
+     * カスタムシートを開く
+     */
+    function openCustomSheet() {
+      showStatus('📝 カスタムプロンプト編集シートを開いています...', 'info');
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            window.open(result.url, '_blank');
+            showStatus('✅ カスタムプロンプト編集シートを開きました', 'success');
+            
+            // 使い方のガイドを表示
+            const guideHtml = `
+              <div class="custom-guide" style="margin: 20px 0; padding: 20px; border: 2px solid var(--primary-khaki); border-radius: 8px; background: var(--cream-khaki);">
+                <h4>📝 カスタムプロンプト編集ガイド</h4>
+                <div style="margin: 10px 0;">
+                  <p><strong>編集方法:</strong></p>
+                  <ol style="margin-left: 20px;">
+                    <li>開いたスプレッドシートの「custom」シートを確認</li>
+                    <li>A1セル（左上のセル）にカスタムプロンプトを入力</li>
+                    <li>内容を保存（Ctrl+S）</li>
+                    <li>このページに戻って「🧪 カスタムプロンプトテスト」で動作確認</li>
+                  </ol>
+                </div>
+                <div style="margin: 10px 0;">
+                  <p><strong>プロンプト例:</strong></p>
+                  <pre style="background: #f0f0f0; padding: 10px; border-radius: 4px; white-space: pre-wrap; font-size: 12px;">あなたは○○専門のAIです。以下の文書を解析し、
+特に【重要項目A】【重要項目B】に注目して
+400文字以内で要約してください。</pre>
+                </div>
+                <div style="margin: 10px 0;">
+                  <p><strong>注意:</strong> A1セルを空にするとデフォルトプロンプトが使用されます</p>
+                </div>
+              </div>
+            `;
+            
+            document.getElementById('results').innerHTML = guideHtml;
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else {
+            showStatus(`❌ シートオープンエラー: ${result.error}`, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showStatus(`❌ シートオープンエラー: ${error.message}`, 'error');
+        })
+        .getCustomSheetUrl();
+    }
+
+    /**
+     * カスタムプロンプトクリア
+     */
+    function clearCustomPrompt() {
+      if (!confirm('カスタムプロンプトをクリアしてデフォルトに戻しますか？\n\n※この操作は元に戻せません')) {
+        return;
+      }
+      
+      showStatus('🗑️ カスタムプロンプトをクリア中...', 'info');
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showStatus(`✅ ${result.message}`, 'success');
+            
+            // 完了メッセージを表示
+            const clearHtml = `
+              <div class="clear-result" style="margin: 20px 0; padding: 20px; border: 2px solid var(--accent-khaki); border-radius: 8px; background: #e8f5e8;">
+                <h4>🗑️ プロンプトリセット完了</h4>
+                <div style="margin: 10px 0;">
+                  <p>${result.message}</p>
+                </div>
+                <div style="margin: 10px 0;">
+                  <p><strong>次回の新規ドキュメント解析から</strong>業種別デフォルトプロンプトが適用されます。</p>
+                </div>
+                <div style="margin-top: 15px;">
+                  <button onclick="checkCustomPromptStatus()" class="mgmt-btn">📝 状況再確認</button>
+                </div>
+              </div>
+            `;
+            
+            document.getElementById('results').innerHTML = clearHtml;
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else {
+            showStatus(`❌ クリアエラー: ${result.error}`, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showStatus(`❌ クリアエラー: ${error.message}`, 'error');
+        })
+        .clearCustomPrompt();
     }
 
     // キーボードショートカット

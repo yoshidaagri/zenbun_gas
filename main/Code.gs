@@ -2464,3 +2464,186 @@ function getAllUsageStats() {
     };
   }
 }
+
+// ===== カスタムプロンプト管理機能 =====
+
+/**
+ * カスタムプロンプト状況を確認
+ * @returns {Object} 状況情報
+ */
+function checkCustomPromptStatus() {
+  console.log('📝 ===== カスタムプロンプト状況確認 =====');
+  
+  try {
+    const config = ConfigManager.getConfig();
+    const status = CustomPromptManager.getCustomPromptStatus(config.spreadsheetId);
+    
+    console.log('📊 カスタムプロンプト状況:');
+    console.log(`   現在使用中: ${status.currentlyUsing === 'custom' ? 'カスタム' : 'デフォルト'}`);
+    console.log(`   推奨事項: ${status.recommendation}`);
+    
+    if (status.custom.hasCustom) {
+      console.log('✅ カスタムプロンプト設定済み:');
+      console.log(`   文字数: ${status.custom.length}文字`);
+      console.log(`   内容: ${status.custom.preview}...`);
+    } else {
+      console.log('⚪ カスタムプロンプト未設定');
+      console.log(`   理由: ${status.custom.message}`);
+    }
+    
+    console.log('🏢 デフォルトプロンプト:');
+    console.log(`   業種: ${status.default.industry}`);
+    console.log(`   文字数: ${status.default.length}文字`);
+    console.log(`   内容: ${status.default.prompt.substring(0, 100)}...`);
+    
+    return status;
+    
+  } catch (error) {
+    console.error('❌ カスタムプロンプト状況確認エラー:', error);
+    return { error: error.message };
+  }
+}
+
+/**
+ * カスタムプロンプトを設定
+ * @param {string} prompt カスタムプロンプト
+ * @returns {Object} 設定結果
+ */
+function setCustomPrompt(prompt) {
+  console.log('📝 ===== カスタムプロンプト設定 =====');
+  
+  try {
+    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+      throw new Error('有効なプロンプトを指定してください');
+    }
+    
+    const config = ConfigManager.getConfig();
+    const result = CustomPromptManager.setCustomPrompt(config.spreadsheetId, prompt);
+    
+    console.log(`✅ 設定結果: ${result.message}`);
+    return result;
+    
+  } catch (error) {
+    console.error('❌ カスタムプロンプト設定エラー:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * カスタムプロンプトをクリア
+ * @returns {Object} クリア結果
+ */
+function clearCustomPrompt() {
+  console.log('🗑️ ===== カスタムプロンプトクリア =====');
+  
+  try {
+    const config = ConfigManager.getConfig();
+    const result = CustomPromptManager.clearCustomPrompt(config.spreadsheetId);
+    
+    console.log(`✅ クリア結果: ${result.message}`);
+    return result;
+    
+  } catch (error) {
+    console.error('❌ カスタムプロンプトクリアエラー:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * カスタムプロンプトのテスト実行
+ * @returns {Object} テスト結果
+ */
+function testCustomPrompt() {
+  console.log('🧪 ===== カスタムプロンプトテスト =====');
+  
+  try {
+    // 現在の状況確認
+    const status = checkCustomPromptStatus();
+    
+    // テスト用ドキュメント処理
+    const testPrompt = DocumentProcessor.createSummaryPrompt(
+      'test_document.pdf',
+      'これはテスト用のドキュメントです。重要な情報が含まれています。会計データ、設計情報、プロジェクト詳細などが記載されています。'
+    );
+    
+    const result = {
+      success: true,
+      customPromptStatus: status,
+      testPrompt: {
+        length: testPrompt.length,
+        preview: testPrompt.substring(0, 300),
+        usingCustom: status.custom && status.custom.hasCustom
+      },
+      message: status.custom && status.custom.hasCustom ? 
+        'カスタムプロンプトが正常に適用されています' :
+        'デフォルトプロンプトが使用されています'
+    };
+    
+    console.log('✅ テスト完了:', result.message);
+    console.log(`📏 生成されたプロンプト長: ${testPrompt.length}文字`);
+    console.log(`📝 プロンプト内容（抜粋）: ${testPrompt.substring(0, 200)}...`);
+    
+    return result;
+    
+  } catch (error) {
+    console.error('❌ カスタムプロンプトテストエラー:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * カスタムシートのURLを取得
+ * @returns {Object} URL情報
+ */
+function getCustomSheetUrl() {
+  console.log('🔗 ===== カスタムシートURL取得 =====');
+  
+  try {
+    const config = ConfigManager.getConfig();
+    const result = CustomPromptManager.getCustomSheetUrl(config.spreadsheetId);
+    
+    if (result.success) {
+      console.log(`✅ URL取得成功: ${result.url}`);
+    } else {
+      console.log(`❌ URL取得失敗: ${result.message}`);
+    }
+    
+    return result;
+    
+  } catch (error) {
+    console.error('❌ カスタムシートURL取得エラー:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * カスタムプロンプトの検証
+ * @param {string} prompt プロンプト文字列
+ * @returns {Object} 検証結果
+ */
+function validateCustomPrompt(prompt) {
+  console.log('🔍 ===== カスタムプロンプト検証 =====');
+  
+  try {
+    const validation = CustomPromptManager.validateCustomPrompt(prompt);
+    
+    console.log(`📊 検証結果: ${validation.isValid ? '✅ 有効' : '⚠️ 要改善'}`);
+    console.log(`📈 品質スコア: ${validation.score}/100`);
+    
+    if (validation.warnings.length > 0) {
+      console.log('⚠️ 警告事項:');
+      validation.warnings.forEach(warning => console.log(`   - ${warning}`));
+    }
+    
+    if (validation.recommendations.length > 0) {
+      console.log('💡 改善提案:');
+      validation.recommendations.forEach(rec => console.log(`   - ${rec}`));
+    }
+    
+    return validation;
+    
+  } catch (error) {
+    console.error('❌ カスタムプロンプト検証エラー:', error);
+    return { isValid: false, error: error.message };
+  }
+}
