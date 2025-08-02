@@ -862,10 +862,30 @@ class DocumentProcessor {
    * @returns {string} プロンプト
    */
   static createImageAnalysisPrompt(fileName, mimeType) {
-    console.log('🔍 画像解析プロンプト作成開始（業種別対応）');
+    console.log('🔍 画像解析プロンプト作成開始（カスタムプロンプト対応）');
     
     try {
-      // 現在の業種設定を取得
+      // 🆕 カスタムプロンプトチェック
+      const config = ConfigManager.getConfig();
+      const customPromptInfo = CustomPromptManager.getCustomPrompt(config.spreadsheetId);
+      
+      console.log(`📋 画像解析プロンプト判定: ${customPromptInfo.source}`);
+      console.log(`📝 メッセージ: ${customPromptInfo.message}`);
+      
+      if (customPromptInfo.hasCustom) {
+        // カスタムプロンプト使用（画像解析用に拡張）
+        console.log('✅ 画像解析でカスタムプロンプト適用');
+        console.log(`📝 内容: ${customPromptInfo.preview}...`);
+        
+        return `${customPromptInfo.prompt}
+
+ファイル名: ${fileName}
+画像形式: ${mimeType}
+
+上記のファイルを解析してください。`;
+      }
+      
+      // デフォルトプロンプト使用（業種別）
       const industryConfig = ConfigManager.getIndustryConfig();
       console.log(`📊 業種: ${industryConfig.name}`);
       
@@ -957,10 +977,29 @@ class DocumentProcessor {
    * @returns {string} プロンプト
    */
   static createPdfKeywordExtractionPrompt(fileName) {
-    console.log('🔍 PDFキーワード抽出プロンプト作成開始（業種別対応）');
+    console.log('🔍 PDFキーワード抽出プロンプト作成開始（カスタムプロンプト対応）');
     
     try {
-      // 現在の業種設定を取得
+      // 🆕 カスタムプロンプトチェック
+      const config = ConfigManager.getConfig();
+      const customPromptInfo = CustomPromptManager.getCustomPrompt(config.spreadsheetId);
+      
+      console.log(`📋 PDF解析プロンプト判定: ${customPromptInfo.source}`);
+      console.log(`📝 メッセージ: ${customPromptInfo.message}`);
+      
+      if (customPromptInfo.hasCustom) {
+        // カスタムプロンプト使用（PDF解析用に拡張）
+        console.log('✅ PDF解析でカスタムプロンプト適用');
+        console.log(`📝 内容: ${customPromptInfo.preview}...`);
+        
+        return `${customPromptInfo.prompt}
+
+ファイル名: ${fileName}
+
+上記のPDFファイルを解析してください。`;
+      }
+      
+      // デフォルトプロンプト使用（業種別）
       const industryConfig = ConfigManager.getIndustryConfig();
       console.log(`📊 業種: ${industryConfig.name}`);
       
