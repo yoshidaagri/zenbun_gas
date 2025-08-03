@@ -12,24 +12,32 @@
  * クエリパラメータ 'page' で表示するページを指定可能
  */
 function doGet(e) {
-  const page = e.parameter.page || 'search';
+  console.log('📄 doGet実行');
+  console.log('全パラメータ:', e.parameter);
   
-  let templateName;
-  switch (page) {
-    case 'analysis':
-      templateName = 'analysis';
-      break;
-    case 'search':
-    default:
-      templateName = 'index';
-      break;
+  const page = e && e.parameter ? e.parameter.page : null;
+  console.log(`ページ指定: ${page}`);
+  
+  if (page === 'search') {
+    console.log('📊 検索画面表示 (search.htmlテンプレート使用)');
+    
+    // search.htmlテンプレートを使用
+    const template = HtmlService.createTemplateFromFile('search');
+    
+    // テンプレートにセッション情報を渡す
+    template.sessionId = e.parameter.sessionId || '';
+    template.userEmail = e.parameter.userEmail || '';
+    template.role = e.parameter.role || '';
+    
+    return template.evaluate()
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+      .setTitle('📚 ドキュメント検索システム - 検索');
+  } else {
+    console.log('🔐 ログイン画面表示');
+    return HtmlService.createTemplateFromFile('login').evaluate()
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+      .setTitle('📚 ドキュメント検索システム - ログイン');
   }
-  
-  console.log(`📄 ページ表示: ${page} (template: ${templateName})`);
-  
-  return HtmlService.createTemplateFromFile(templateName).evaluate()
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .setTitle(`🏗️ デザイン事務所検索システム - ${page === 'analysis' ? 'AI解析' : '検索'}`);
 }
 
 /**
@@ -38,6 +46,52 @@ function doGet(e) {
  */
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+/**
+ * サーバーサイドで検索画面HTMLを生成（元のsearch.htmlテンプレート使用）
+ * @param {Object} authResult 認証結果
+ */
+function generateSearchPageWithSession(authResult) {
+  console.log('🔄 サーバーサイドで検索画面生成 (search.htmlテンプレート使用)');
+  console.log('認証結果:', authResult);
+  
+  try {
+    // search.htmlテンプレートを使用
+    const template = HtmlService.createTemplateFromFile('search');
+    
+    // テンプレートにセッション情報を設定
+    template.sessionId = authResult.sessionId || '';
+    template.userEmail = authResult.userEmail || '';
+    template.role = authResult.userData ? authResult.userData.role : 'user';
+    template.userData = authResult.userData || {};
+    
+    console.log('🎯 テンプレートに設定した情報:', {
+      sessionId: template.sessionId,
+      userEmail: template.userEmail,
+      role: template.role
+    });
+    
+    // HTMLを評価して返す
+    const htmlOutput = template.evaluate();
+    return htmlOutput.getContent();
+    
+  } catch (error) {
+    console.error('❌ search.htmlテンプレート生成エラー:', error.message);
+    
+    // フォールバック: シンプルなエラー画面
+    return `
+      <html>
+        <head><title>検索画面エラー</title></head>
+        <body>
+          <h1>🔧 検索画面準備中</h1>
+          <p>search.htmlテンプレートの読み込みでエラーが発生しました。</p>
+          <p>エラー: ${error.message}</p>
+          <button onclick="window.location.reload()">再読み込み</button>
+        </body>
+      </html>
+    `;
+  }
 }
 
 // ===== 公開API関数（フロントエンドから呼び出し） =====
@@ -2649,6 +2703,67 @@ function validateCustomPrompt(prompt) {
 }
 
 // ===== 業種モード切り替え機能 =====
+
+// 古いdoGet()関数を削除（14行目のテスト用doGet()を使用）
+
+/**
+ * POSTリクエストの処理（将来的な拡張用）
+ */
+function doPost(e) {
+  console.log('📨 ===== doPost呼び出し =====');
+  
+  try {
+    // 基本的なPOSTデータ確認
+    if (!e) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'Invalid request object'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    console.log('📨 POST request received successfully');
+    
+    // 将来的にはWebhook受信などに使用予定
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      message: 'POST endpoint ready for future use'
+    })).setMimeType(ContentService.MimeType.JSON);
+    
+  } catch (error) {
+    console.error('❌ doPostエラー:', error.message);
+    
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: error.message
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * システム初期化（userシート作成など）
+ */
+function initializeSystem() {
+  console.log('🏗️ ===== システム初期化開始 =====');
+  
+  try {
+    // userシートの初期化
+    const userSheetResult = UserManager.initializeUserSheet();
+    console.log('userシート初期化結果:', userSheetResult);
+    
+    // 設定確認
+    const configCheck = ConfigManager.checkSetup();
+    console.log('設定確認完了');
+    
+    console.log('✅ システム初期化完了');
+    return { success: true, message: 'システム初期化が完了しました' };
+    
+  } catch (error) {
+    console.error('❌ システム初期化エラー:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+
 
 /**
  * 業種設定と設定取得（UI用）
